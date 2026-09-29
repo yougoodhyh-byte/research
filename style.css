@@ -20,3 +20,17 @@ button,input,select{font:inherit}.hidden{display:none!important}
 .alert-list{padding:0 18px}.alert-item{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid #f2e5bd}.alert-item:last-child{border-bottom:0}
 .alert-title{font-weight:700;margin-bottom:5px}.alert-change{color:#8b5500;margin-bottom:4px}.alert-time{font-size:9pt;color:var(--muted)}.link-btn{text-decoration:none;color:inherit}
 .monitor-field{background:#f8fafc;border:1px solid #e4eaf3;border-radius:9px;padding:10px}.monitor-line{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;font-weight:400}.monitor-line input{width:auto}.monitor-field small{color:var(--muted);font-size:9pt}
+
+.review-service-head{align-items:stretch}
+.review-service-title{min-width:270px;align-self:center}
+.review-service-add{align-self:center;white-space:nowrap}
+.review-template-panel{flex:1;min-width:420px;max-width:760px;background:#f8fafc;border:1px solid #e1e7f0;border-radius:12px;padding:10px 12px}
+.review-template-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.review-template-toolbar b{font-size:11pt}.compact-upload{white-space:nowrap;padding:6px 9px}
+.review-template-list{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;min-height:38px}
+.review-template-item{flex:0 0 auto;max-width:440px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e5eaf2;border-radius:9px;padding:6px 8px}
+.review-template-name{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.review-template-actions{display:flex;gap:4px;flex-wrap:nowrap}
+.mini-btn{border:1px solid #dce3ee;background:#fff;border-radius:6px;padding:4px 6px;cursor:pointer;font-size:9pt}.mini-btn:hover{background:#f3f6fa}.mini-btn.danger{color:var(--danger)}
+.review-template-empty{color:#98a2b3;padding:7px 2px;font-size:9pt}
+@media(max-width:1100px){.review-service-head{flex-wrap:wrap}.review-template-panel{order:3;max-width:none;width:100%}.review-service-title{min-width:0}.review-service-add{margin-left:auto}}

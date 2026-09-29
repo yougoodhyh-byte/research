@@ -257,15 +257,27 @@ function syncPaperModal(){
   const s=$("#paperStatus").value;
   $("#paperDateLabel").textContent=s==="submitted"?"投稿日期":s==="review"?"外审日期":s==="revision"?"返修开始日期":"状态日期";
   $("#paperDeadlineWrap").classList.toggle("hidden",s!=="revision");
+  $("#paperMonitorWrap").classList.toggle("hidden",!(s==="review"&&monitorReady));
 }
 function openPaper(status="submitted",id=null){
   const p=id?papers.find(x=>x.id===id):null;
   $("#paperId").value=p?.id||""; $("#paperTitle").value=p?.title||""; $("#paperJournal").value=p?.journal||""; $("#paperLink").value=p?.link||"";
   $("#paperStatus").value=p?.status||status; $("#paperDate").value=p?.event_date||todayISO(); $("#paperDeadline").value=p?.deadline||"";
+  $("#paperMonitor").checked=!!p?.monitor_enabled;
   syncPaperModal(); $("#paperModal").classList.remove("hidden");
 }
 async function savePaper(){
-  const id=$("#paperId").value, row={title:$("#paperTitle").value.trim(),journal:$("#paperJournal").value.trim(),link:$("#paperLink").value.trim(),status:$("#paperStatus").value,event_date:$("#paperDate").value||todayISO(),deadline:$("#paperStatus").value==="revision"?($("#paperDeadline").value||null):null,updated_at:new Date().toISOString()};
+  const id=$("#paperId").value;
+  const row={
+    title:$("#paperTitle").value.trim(),
+    journal:$("#paperJournal").value.trim(),
+    link:$("#paperLink").value.trim(),
+    status:$("#paperStatus").value,
+    event_date:$("#paperDate").value||todayISO(),
+    deadline:$("#paperStatus").value==="revision"?($("#paperDeadline").value||null):null,
+    updated_at:new Date().toISOString()
+  };
+  if(monitorReady) row.monitor_enabled=row.status==="review"&&$("#paperMonitor").checked;
   if(!row.title) return alert("请填写标题。");
   const q=id?sb.from("papers").update(row).eq("id",id):sb.from("papers").insert(row);
   const {error}=await q; if(error) return toastError(error); $("#paperModal").classList.add("hidden");
@@ -380,6 +392,13 @@ async function importLegacy(){
     localStorage.setItem("rw_cloud_migrated","1"); $("#legacyBanner").classList.add("hidden"); alert("旧数据已导入云端。"); await refreshAll();
   }catch(e){console.error(e);alert("导入旧数据时发生错误，请检查控制台或分批导入。");}
 }
+async function dismissAlert(id){
+  if(!monitorReady) return;
+  const {error}=await sb.from("review_notifications").update({dismissed_at:new Date().toISOString()}).eq("id",id);
+  if(error) return toastError(error);
+  notifications=notifications.filter(n=>n.id!==id);
+  renderAlerts();
+}
 function toastError(error){ console.error(error); alert(error?.message||String(error)); }
 
 document.addEventListener("click", async e=>{
@@ -387,7 +406,7 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-jump]"
   );
   if(!b) return;
 
@@ -402,6 +421,7 @@ document.addEventListener("click", async e=>{
   if(b.dataset.deleteFile){const f=files.find(x=>x.id===b.dataset.deleteFile);if(f)await deleteFileObject(f,true);}
   if(b.dataset.sortGroup) toggleSort(b.dataset.sortGroup,b.dataset.sortKey);
   if(b.dataset.serviceSort) toggleSort("reviewService",b.dataset.serviceSort);
+  if(b.dataset.dismissAlert) await dismissAlert(b.dataset.dismissAlert);
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){

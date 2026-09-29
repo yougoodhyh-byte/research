@@ -35,6 +35,13 @@
         </div>
         <div id="syncBadge" class="sync-badge">云端同步</div>
       </div>
+      <div id="reviewAlerts" class="review-alerts hidden">
+        <div class="alerts-head">
+          <div><b>🔔 外审动态提醒</b><span id="alertCount" class="alert-count"></span></div>
+          <div class="sub">检测到外审追踪页面有新的变化。</div>
+        </div>
+        <div id="alertList" class="alert-list"></div>
+      </div>
       <div class="stats">
         <button class="stat s1" data-jump="submitted"><span>已投稿</span><b id="countSubmitted">0</b></button>
         <button class="stat s2" data-jump="review"><span>外审中</span><b id="countReview">0</b></button>
@@ -132,6 +139,11 @@
         </select></label>
         <label><span id="paperDateLabel">投稿日期</span><input id="paperDate" type="date"></label>
         <label id="paperDeadlineWrap" class="hidden">返修截止日期<input id="paperDeadline" type="date"></label>
+        <label id="paperMonitorWrap" class="full monitor-field hidden">
+          <span>外审动态监控</span>
+          <span class="monitor-line"><input id="paperMonitor" type="checkbox"> 自动检查此稿件的追踪链接，有变化时在首页提醒</span>
+          <small>仅适用于无需登录、验证码或特殊 Cookie 即可访问的追踪页面。</small>
+        </label>
       </div>
       <div class="dialog-actions"><button class="btn" data-close="paperModal">取消</button><button id="savePaperBtn" class="btn primary">保存</button></div>
     </div>
@@ -163,6 +175,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20260929-sortfix2"></script>
+  <script src="./script.js?v=20260929-reviewmonitor1"></script>
 </body>
 </html>

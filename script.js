@@ -21,8 +21,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const fmtDate = d => d ? new Date(d+"T00:00:00").toLocaleDateString("zh-CN") : "—";
 const fmtSize = n => n == null ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`;
 let sb = null, user = null;
-let papers=[], services=[], files=[], aiNote="";
-let realtimeChannel=null, saveTimer=null;
+let papers=[], services=[], files=[], aiNote="", notifications=[];
+let realtimeChannel=null, saveTimer=null, monitorReady=false;
 let sortState = {
   submitted:{key:"event_date",dir:"desc"},
   review:{key:"event_date",dir:"desc"},
@@ -68,7 +68,7 @@ async function enterApp(){
   showLegacyOffer();
 }
 async function refreshAll(){
-  await Promise.all([loadPapers(),loadServices(),loadFiles(),loadAiNote()]);
+  await Promise.all([loadPapers(),loadServices(),loadFiles(),loadAiNote(),loadNotifications()]);
   renderAll();
 }
 async function loadPapers(){
@@ -89,6 +89,16 @@ async function loadAiNote(){
   aiNote=data?.content_html||"";
   if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
 }
+async function loadNotifications(){
+  const {data,error}=await sb.from("review_notifications").select("*").is("dismissed_at",null).order("created_at",{ascending:false});
+  if(error){
+    monitorReady=false;
+    notifications=[];
+    return;
+  }
+  monitorReady=true;
+  notifications=data||[];
+}
 function subscribeRealtime(){
   if(realtimeChannel) sb.removeChannel(realtimeChannel);
   realtimeChannel=sb.channel("research-workbench-sync")
@@ -96,10 +106,31 @@ function subscribeRealtime(){
     .on("postgres_changes",{event:"*",schema:"public",table:"review_services"},async()=>{await loadServices();renderAll();})
     .on("postgres_changes",{event:"*",schema:"public",table:"research_files"},async()=>{await loadFiles();renderAll();})
     .on("postgres_changes",{event:"*",schema:"public",table:"ai_notes"},async()=>{await loadAiNote();})
+    .on("postgres_changes",{event:"*",schema:"public",table:"review_notifications"},async()=>{await loadNotifications();renderAlerts();})
     .subscribe();
 }
 function renderAll(){
-  renderCounts(); renderPapers(); renderServices(); renderTemplates(); renderArchive();
+  renderCounts(); renderAlerts(); renderPapers(); renderServices(); renderTemplates(); renderArchive();
+}
+function renderAlerts(){
+  const wrap=$("#reviewAlerts"), list=$("#alertList");
+  if(!wrap||!list) return;
+  if(!monitorReady||!notifications.length){
+    wrap.classList.add("hidden");
+    list.innerHTML="";
+    return;
+  }
+  wrap.classList.remove("hidden");
+  $("#alertCount").textContent=notifications.length;
+  list.innerHTML=notifications.map(n=>{
+    const p=papers.find(x=>x.id===n.paper_id);
+    const title=n.paper_title||p?.title||"外审稿件";
+    const journal=n.journal||p?.journal||"";
+    const change=n.old_status&&n.new_status ? esc(n.old_status)+" → "+esc(n.new_status) : esc(n.message||"追踪页面检测到变化");
+    const when=new Date(n.created_at).toLocaleString("zh-CN");
+    const href=p?.link ? (/^https?:\/\//i.test(p.link)?p.link:"https://"+p.link) : "";
+    return "<div class=\"alert-item\"><div class=\"alert-main\"><div class=\"alert-title\">"+esc(title)+(journal?" · "+esc(journal):"")+"</div><div class=\"alert-change\">"+change+"</div><div class=\"alert-time\">"+when+"</div></div><div class=\"actions\">"+(href?"<a class=\"btn link-btn\" href=\""+esc(href)+"\" target=\"_blank\" rel=\"noopener\">打开追踪页</a>":"")+"<button class=\"btn danger\" data-dismiss-alert=\""+n.id+"\" title=\"擦掉提醒\">×</button></div></div>";
+  }).join("");
 }
 function renderCounts(){
   $("#countSubmitted").textContent=papers.filter(p=>p.status==="submitted").length;

@@ -110,7 +110,7 @@ function subscribeRealtime(){
     .subscribe();
 }
 function renderAll(){
-  renderCounts(); renderAlerts(); renderPapers(); renderServices(); renderTemplates(); renderArchive();
+  renderCounts(); renderAlerts(); renderPapers(); renderServices(); renderReviewTemplates(); renderTemplates(); renderArchive();
 }
 function renderAlerts(){
   const wrap=$("#reviewAlerts"), list=$("#alertList");
@@ -208,6 +208,13 @@ function linkHtml(url){
   if(!url) return "—"; const u=/^https?:\/\//i.test(url)?url:"https://"+url;
   return `<a class="link" href="${esc(u)}" target="_blank" rel="noopener">访问 ↗</a>`;
 }
+function storageFolder(f){
+  const parts=String(f?.storage_path||"").split("/");
+  return parts.length>2?parts[1]:"";
+}
+function isReviewTemplate(f){
+  return f.kind==="template" && storageFolder(f)==="review_template";
+}
 function serviceFile(serviceId){ return files.find(f=>f.kind==="review_manuscript"&&f.review_service_id===serviceId); }
 function renderServices(){
   const body=$("#serviceBody");
@@ -236,8 +243,24 @@ function fileActions(f){
     <button class="btn danger" data-delete-file="${f.id}">删除</button>
   </div><div class="file-meta">${esc(f.file_name)}</div>`;
 }
+function renderReviewTemplates(){
+  const box=$("#reviewTemplateList");
+  if(!box) return;
+  const list=files.filter(isReviewTemplate);
+  box.innerHTML=list.map(f=>`
+    <div class="review-template-item">
+      <div class="review-template-name" title="${esc(f.file_name)}">${esc(f.file_name)}</div>
+      <div class="review-template-actions">
+        <button class="mini-btn" data-preview-file="${f.id}">预览</button>
+        <button class="mini-btn" data-download-file="${f.id}">下载</button>
+        <button class="mini-btn" data-replace-file="${f.id}">替换</button>
+        <button class="mini-btn danger" data-delete-file="${f.id}">删除</button>
+      </div>
+    </div>
+  `).join("")||`<div class="review-template-empty">暂无审稿模板</div>`;
+}
 function renderTemplates(){
-  $("#templateList").innerHTML=files.filter(f=>f.kind==="template").map(f=>`
+  $("#templateList").innerHTML=files.filter(f=>f.kind==="template"&&!isReviewTemplate(f)).map(f=>`
     <div class="file-row"><div><div class="file-name">${esc(f.file_name)}</div><div class="file-meta">${fmtSize(f.file_size)} · ${new Date(f.created_at).toLocaleString("zh-CN")}</div></div>${fileActions(f)}</div>
   `).join("")||`<div class="empty">暂无模板文件</div>`;
 }
@@ -309,11 +332,13 @@ function safeExtension(name){
   const ext=(parts.pop()||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12);
   return ext ? "."+ext : "";
 }
-async function uploadFile(file,kind,reviewServiceId=null,existing=null){
+async function uploadFile(file,kind,reviewServiceId=null,existing=null,folder=null){
   if(!file) return;
-  // Storage path uses only UUID + ASCII extension.
-  // The original Chinese filename is still kept in database metadata (file_name).
-  const path=`${user.id}/${kind}/${crypto.randomUUID()}${safeExtension(file.name)}`;
+  // Keep database kind compatible with the existing schema, while using
+  // a separate Storage folder to distinguish review templates.
+  const existingFolder=existing?storageFolder(existing):"";
+  const storageFolderName=folder||existingFolder||kind;
+  const path=`${user.id}/${storageFolderName}/${crypto.randomUUID()}${safeExtension(file.name)}`;
   const {error:upErr}=await sb.storage.from(BUCKET).upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});
   if(upErr) return toastError(upErr);
   const meta={kind,review_service_id:reviewServiceId,file_name:file.name,storage_path:path,mime_type:file.type||"",file_size:file.size,updated_at:new Date().toISOString()};
@@ -438,6 +463,10 @@ $("#loginBtn").addEventListener("click",()=>login(false));
 $("#signupBtn").addEventListener("click",()=>login(true));
 $("#logoutBtn").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
 $("#templateUpload").addEventListener("change",async e=>{for(const f of [...e.target.files])await uploadFile(f,"template");e.target.value="";});
+$("#reviewTemplateUpload").addEventListener("change",async e=>{
+  for(const f of [...e.target.files]) await uploadFile(f,"template",null,null,"review_template");
+  e.target.value="";
+});
 $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[0];if(f&&replaceContext)await uploadFile(f,replaceContext.kind,replaceContext.review_service_id,replaceContext);replaceContext=null;});
 $("#boldBtn").addEventListener("click",()=>document.execCommand("bold"));
 $("#aiEditor").addEventListener("input",()=>{ $("#aiSaveState").textContent="待保存"; clearTimeout(saveTimer); saveTimer=setTimeout(saveAi,800); });

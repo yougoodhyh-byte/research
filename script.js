@@ -111,14 +111,30 @@ function sortRows(arr,state){
   const {key,dir}=state;
   return [...arr].sort((a,b)=>{
     let av,bv;
-    if(key==="duration"){ av=daysSince(a.event_date)??-999999; bv=daysSince(b.event_date)??-999999; }
-    else if(key==="remaining"){ av=daysRemaining(a.end_date)??999999; bv=daysRemaining(b.end_date)??999999; }
-    else { av=a[key]?new Date(a[key]+"T00:00:00").getTime():Number.MAX_SAFE_INTEGER; bv=b[key]?new Date(b[key]+"T00:00:00").getTime():Number.MAX_SAFE_INTEGER; }
+    if(key==="duration"){
+      av=daysSince(a.event_date)??-999999;
+      bv=daysSince(b.event_date)??-999999;
+    }else if(key==="remaining"){
+      av=daysRemaining(a.end_date)??999999;
+      bv=daysRemaining(b.end_date)??999999;
+    }else if(key==="countdown"){
+      av=daysRemaining(a.deadline)??999999;
+      bv=daysRemaining(b.deadline)??999999;
+    }else{
+      av=a[key]?new Date(a[key]+"T00:00:00").getTime():Number.MAX_SAFE_INTEGER;
+      bv=b[key]?new Date(b[key]+"T00:00:00").getTime():Number.MAX_SAFE_INTEGER;
+    }
     return (av-bv)*(dir==="asc"?1:-1);
   });
 }
 function toggleSort(group,key){
-  const s=sortState[group]; if(s.key===key) s.dir=s.dir==="asc"?"desc":"asc"; else {s.key=key;s.dir=(key==="deadline"||key==="end_date"||key==="remaining")?"asc":"desc";}
+  const s=sortState[group];
+  if(s.key===key){
+    s.dir=s.dir==="asc"?"desc":"asc";
+  }else{
+    s.key=key;
+    s.dir=(key==="deadline"||key==="end_date"||key==="remaining"||key==="countdown")?"asc":"desc";
+  }
   renderAll();
 }
 function sortHead(group,key,label){
@@ -130,7 +146,7 @@ function renderPapers(){
     const el=$("#"+status), list=sortRows(papers.filter(p=>p.status===status),sortState[status]);
     const dateLabel=status==="submitted"?"投稿日期":status==="review"?"外审日期":"返修开始日期";
     const extraHead=status==="revision"
-      ? sortHead(status,"deadline","截止日期")+sortHead(status,"deadline","倒计时")
+      ? sortHead(status,"deadline","截止日期")+sortHead(status,"countdown","倒计时")
       : sortHead(status,"duration",status==="submitted"?"投稿时长":"外审时长");
     const rows=list.map(p=>{
       const remaining=status==="revision"?remainingHtml(p.deadline):"";
@@ -336,7 +352,14 @@ async function importLegacy(){
 function toastError(error){ console.error(error); alert(error?.message||String(error)); }
 
 document.addEventListener("click", async e=>{
-  const b=e.target.closest("button,[data-jump]"); if(!b) return;
+  const b=e.target.closest(
+    "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
+    "[data-edit-service],[data-delete-service]," +
+    "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
+    "[data-sort-group],[data-service-sort],[data-jump]"
+  );
+  if(!b) return;
+
   if(b.dataset.addPaper) openPaper(b.dataset.addPaper);
   if(b.dataset.editPaper) openPaper(null,b.dataset.editPaper);
   if(b.dataset.deletePaper) await deletePaper(b.dataset.deletePaper);
@@ -347,6 +370,7 @@ document.addEventListener("click", async e=>{
   if(b.dataset.replaceFile){replaceContext=files.find(x=>x.id===b.dataset.replaceFile);$("#replaceInput").value="";$("#replaceInput").click();}
   if(b.dataset.deleteFile){const f=files.find(x=>x.id===b.dataset.deleteFile);if(f)await deleteFileObject(f,true);}
   if(b.dataset.sortGroup) toggleSort(b.dataset.sortGroup,b.dataset.sortKey);
+  if(b.dataset.serviceSort) toggleSort("reviewService",b.dataset.serviceSort);
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){
@@ -367,6 +391,5 @@ $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[
 $("#boldBtn").addEventListener("click",()=>document.execCommand("bold"));
 $("#aiEditor").addEventListener("input",()=>{ $("#aiSaveState").textContent="待保存"; clearTimeout(saveTimer); saveTimer=setTimeout(saveAi,800); });
 $("#importLegacyBtn").addEventListener("click",importLegacy);
-$$("[data-service-sort]").forEach(th=>th.addEventListener("click",()=>{toggleSort("reviewService",th.dataset.serviceSort);}));
 init();
 })();

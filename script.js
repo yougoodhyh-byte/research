@@ -30,6 +30,7 @@ let sortState = {
   reviewService:{key:"end_date",dir:"asc"}
 };
 let replaceContext=null;
+let archiveTab="papers";
 
 function showSetup(){
   const b=$("#setupBanner");
@@ -136,7 +137,7 @@ function renderCounts(){
   $("#countSubmitted").textContent=papers.filter(p=>p.status==="submitted").length;
   $("#countReview").textContent=papers.filter(p=>p.status==="review").length;
   $("#countRevision").textContent=papers.filter(p=>p.status==="revision").length;
-  $("#countService").textContent=services.length;
+  $("#countService").textContent=services.filter(s=>(s.status||"pending")==="pending").length;
 }
 function sortRows(arr,state){
   const {key,dir}=state;
@@ -218,7 +219,7 @@ function isReviewTemplate(f){
 function serviceFile(serviceId){ return files.find(f=>f.kind==="review_manuscript"&&f.review_service_id===serviceId); }
 function renderServices(){
   const body=$("#serviceBody");
-  const list=sortRows(services,sortState.reviewService);
+  const list=sortRows(services.filter(s=>(s.status||"pending")==="pending"),sortState.reviewService);
   body.innerHTML=list.map(s=>{
     const f=serviceFile(s.id);
     return `<tr>
@@ -264,9 +265,39 @@ function renderTemplates(){
     <div class="file-row"><div><div class="file-name">${esc(f.file_name)}</div><div class="file-meta">${fmtSize(f.file_size)} · ${new Date(f.created_at).toLocaleString("zh-CN")}</div></div>${fileActions(f)}</div>
   `).join("")||`<div class="empty">暂无模板文件</div>`;
 }
+function renderArchiveTabs(){
+  $$("[data-archive-tab]").forEach(b=>b.classList.toggle("active",b.dataset.archiveTab===archiveTab));
+  $("#archivePapersPanel")?.classList.toggle("active",archiveTab==="papers");
+  $("#archiveServicesPanel")?.classList.toggle("active",archiveTab==="services");
+}
 function renderArchive(){
-  $("#archiveBody").innerHTML=papers.filter(p=>!ACTIVE.includes(p.status)).map(p=>`<tr><td>${esc(p.title)}</td><td>${esc(p.journal||"—")}</td><td>${linkHtml(p.link)}</td><td>${PAPER_STATUSES[p.status]}</td><td>${fmtDate(p.event_date)}</td><td><div class="actions"><button class="btn" data-edit-paper="${p.id}">编辑</button><button class="btn danger" data-delete-paper="${p.id}">删除</button></div></td></tr>`).join("")
-    ||`<tr><td colspan="6" class="empty">暂无归档稿件</td></tr>`;
+  $("#archiveBody").innerHTML=papers.filter(p=>!ACTIVE.includes(p.status)).map(p=>`
+    <tr>
+      <td>${esc(p.title)}</td>
+      <td>${esc(p.journal||"—")}</td>
+      <td>${linkHtml(p.link)}</td>
+      <td>${PAPER_STATUSES[p.status]}</td>
+      <td>${fmtDate(p.event_date)}</td>
+      <td><div class="actions"><button class="btn" data-edit-paper="${p.id}">编辑</button><button class="btn danger" data-delete-paper="${p.id}">删除</button></div></td>
+    </tr>
+  `).join("")||`<tr><td colspan="6" class="empty">暂无归档论文</td></tr>`;
+
+  const archivedServices=services.filter(s=>(s.status||"pending")==="reviewed");
+  $("#archiveServiceBody").innerHTML=archivedServices.map(s=>{
+    const f=serviceFile(s.id);
+    return `<tr>
+      <td>${esc(s.title)}</td>
+      <td>${esc(s.journal||"—")}</td>
+      <td>${linkHtml(s.link)}</td>
+      <td>${f?fileActions(f):"—"}</td>
+      <td>${fmtDate(s.start_date)}</td>
+      <td>${fmtDate(s.end_date)}</td>
+      <td><span class="status-chip reviewed">已审</span></td>
+      <td><div class="actions"><button class="btn" data-edit-service="${s.id}">编辑</button><button class="btn danger" data-delete-service="${s.id}">删除</button></div></td>
+    </tr>`;
+  }).join("")||`<tr><td colspan="8" class="empty">暂无已归档的外审服务论文</td></tr>`;
+
+  renderArchiveTabs();
 }
 async function login(signup=false){
   const email=$("#authEmail").value.trim(), password=$("#authPassword").value;
@@ -309,13 +340,32 @@ function openService(id=null){
   const s=id?services.find(x=>x.id===id):null;
   $("#serviceId").value=s?.id||""; $("#serviceTitle").value=s?.title||""; $("#serviceJournal").value=s?.journal||""; $("#serviceLink").value=s?.link||"";
   $("#serviceStart").value=s?.start_date||todayISO(); $("#serviceEnd").value=s?.end_date||"";
+  $("#serviceStatus").value=s?.status||"pending";
   $("#serviceModal").classList.remove("hidden");
 }
 async function saveService(){
-  const id=$("#serviceId").value, row={title:$("#serviceTitle").value.trim(),journal:$("#serviceJournal").value.trim(),link:$("#serviceLink").value.trim(),start_date:$("#serviceStart").value||todayISO(),end_date:$("#serviceEnd").value||null,updated_at:new Date().toISOString()};
+  const id=$("#serviceId").value;
+  const row={
+    title:$("#serviceTitle").value.trim(),
+    journal:$("#serviceJournal").value.trim(),
+    link:$("#serviceLink").value.trim(),
+    start_date:$("#serviceStart").value||todayISO(),
+    end_date:$("#serviceEnd").value||null,
+    status:$("#serviceStatus").value||"pending",
+    updated_at:new Date().toISOString()
+  };
   if(!row.title) return alert("请填写标题。");
   const q=id?sb.from("review_services").update(row).eq("id",id):sb.from("review_services").insert(row);
-  const {error}=await q; if(error) return toastError(error); $("#serviceModal").classList.add("hidden");
+  const {error}=await q;
+  if(error) return toastError(error);
+  $("#serviceModal").classList.add("hidden");
+  await loadServices();
+  renderAll();
+  if(row.status==="reviewed"){
+    archiveTab="services";
+    showView("archive");
+    renderArchiveTabs();
+  }
 }
 async function deletePaper(id){
   const p=papers.find(x=>x.id===id); if(!confirm(`确认删除稿件“${p?.title||""}”吗？删除后无法恢复。`)) return;
@@ -431,7 +481,7 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-jump]"
   );
   if(!b) return;
 
@@ -447,6 +497,10 @@ document.addEventListener("click", async e=>{
   if(b.dataset.sortGroup) toggleSort(b.dataset.sortGroup,b.dataset.sortKey);
   if(b.dataset.serviceSort) toggleSort("reviewService",b.dataset.serviceSort);
   if(b.dataset.dismissAlert) await dismissAlert(b.dataset.dismissAlert);
+  if(b.dataset.archiveTab){
+    archiveTab=b.dataset.archiveTab;
+    renderArchiveTabs();
+  }
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){

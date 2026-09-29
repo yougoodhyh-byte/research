@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>科研工作台</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="setupBanner" class="setup-banner hidden"></div>
+
+  <header class="topbar">
+    <div class="brand">▣ 科研工作台</div>
+    <nav class="nav" id="nav">
+      <button class="active" data-view="home">首页</button>
+      <button data-view="submitted">已投稿</button>
+      <button data-view="review">外审中</button>
+      <button data-view="revision">返修中</button>
+      <button data-view="reviewService">外审服务</button>
+      <button data-view="templates">投稿模板</button>
+      <button data-view="archive">归档管理</button>
+    </nav>
+    <div class="account">
+      <span id="accountEmail"></span>
+      <button id="logoutBtn" class="btn ghost hidden">退出</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section id="home" class="view active">
+      <div class="hero">
+        <div>
+          <h1>欢迎使用科研工作台</h1>
+          <p>记录、跟踪并集中管理科研投稿与同行评审工作。</p>
+        </div>
+        <div id="syncBadge" class="sync-badge">云端同步</div>
+      </div>
+      <div class="stats">
+        <button class="stat s1" data-jump="submitted"><span>已投稿</span><b id="countSubmitted">0</b></button>
+        <button class="stat s2" data-jump="review"><span>外审中</span><b id="countReview">0</b></button>
+        <button class="stat s3" data-jump="revision"><span>返修进行中</span><b id="countRevision">0</b></button>
+        <button class="stat s4" data-jump="reviewService"><span>外审服务</span><b id="countService">0</b></button>
+      </div>
+      <div id="legacyBanner" class="legacy hidden">
+        <div><b>发现这台设备中的旧版科研工作台数据。</b><span>可以一键导入到云端，之后其他设备也能同步看到。</span></div>
+        <button id="importLegacyBtn" class="btn primary">导入旧数据</button>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>近期外审服务</h2><button class="btn" data-jump="reviewService">查看全部</button></div>
+        <div class="table-wrap"><table><thead><tr><th>标题</th><th>期刊</th><th>结束日期</th><th>剩余时间</th></tr></thead><tbody id="homeServiceBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="submitted" class="view"></section>
+    <section id="review" class="view"></section>
+    <section id="revision" class="view"></section>
+
+    <section id="reviewService" class="view">
+      <div class="card">
+        <div class="card-head">
+          <div><h2>外审服务</h2><div class="sub">记录你为期刊提供的同行评审服务。</div></div>
+          <button id="addServiceBtn" class="btn primary">＋ 新增外审服务</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>标题</th><th>期刊名</th><th>链接</th><th>稿件</th>
+                <th class="sortable" data-service-sort="start_date">审稿开始时间 <span>↕</span></th>
+                <th class="sortable" data-service-sort="end_date">审稿结束时间 <span>↕</span></th>
+                <th class="sortable" data-service-sort="remaining">剩余时间 <span>↕</span></th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="serviceBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="templates" class="view">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <div><h2>模板</h2><div class="sub">文件存储在云端，可跨设备访问。</div></div>
+            <label class="btn primary">＋ 上传文件<input id="templateUpload" type="file" hidden multiple></label>
+          </div>
+          <div class="file-list" id="templateList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div><h2>AI辅助</h2><div class="sub">小四字体（12pt），自动同步保存。</div></div>
+            <button id="boldBtn" class="btn"><b>B 加粗</b></button>
+          </div>
+          <div class="editor-wrap">
+            <div id="aiEditor" class="ai-editor" contenteditable="true"></div>
+            <div id="aiSaveState" class="save-state">已保存</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="archive" class="view">
+      <div class="card">
+        <div class="card-head"><h2>归档管理</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>标题</th><th>期刊</th><th>链接</th><th>状态</th><th>日期</th><th>操作</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="authModal" class="modal">
+    <div class="dialog auth-dialog">
+      <h2>登录科研工作台</h2>
+      <p>登录同一账号后，你的数据和文件可在不同设备同步。</p>
+      <label>邮箱<input id="authEmail" type="email" autocomplete="email"></label>
+      <label>密码<input id="authPassword" type="password" autocomplete="current-password"></label>
+      <div class="dialog-actions">
+        <button id="signupBtn" class="btn">注册</button>
+        <button id="loginBtn" class="btn primary">登录</button>
+      </div>
+      <div id="authMsg" class="message"></div>
+    </div>
+  </div>
+
+  <div id="paperModal" class="modal hidden">
+    <div class="dialog">
+      <h2 id="paperModalTitle">稿件信息</h2>
+      <input id="paperId" type="hidden">
+      <div class="form-grid">
+        <label class="full">标题<input id="paperTitle"></label>
+        <label>期刊名<input id="paperJournal"></label>
+        <label>链接<input id="paperLink" placeholder="https://..."></label>
+        <label>状态<select id="paperStatus">
+          <option value="submitted">已投稿</option><option value="review">外审中</option><option value="revision">返修中</option>
+          <option value="accepted">已录用</option><option value="published">已发表</option><option value="rejected">拒稿</option><option value="withdrawn">撤稿</option>
+        </select></label>
+        <label><span id="paperDateLabel">投稿日期</span><input id="paperDate" type="date"></label>
+        <label id="paperDeadlineWrap" class="hidden">返修截止日期<input id="paperDeadline" type="date"></label>
+      </div>
+      <div class="dialog-actions"><button class="btn" data-close="paperModal">取消</button><button id="savePaperBtn" class="btn primary">保存</button></div>
+    </div>
+  </div>
+
+  <div id="serviceModal" class="modal hidden">
+    <div class="dialog">
+      <h2>外审服务信息</h2>
+      <input id="serviceId" type="hidden">
+      <div class="form-grid">
+        <label class="full">标题<input id="serviceTitle"></label>
+        <label>期刊名<input id="serviceJournal"></label>
+        <label>链接<input id="serviceLink" placeholder="https://..."></label>
+        <label>审稿开始时间<input id="serviceStart" type="date"></label>
+        <label>审稿结束时间<input id="serviceEnd" type="date"></label>
+      </div>
+      <div class="dialog-actions"><button class="btn" data-close="serviceModal">取消</button><button id="saveServiceBtn" class="btn primary">保存</button></div>
+    </div>
+  </div>
+
+  <div id="previewModal" class="modal hidden">
+    <div class="dialog preview-dialog">
+      <div class="preview-head"><h2 id="previewTitle">文件预览</h2><button class="btn" data-close="previewModal">关闭</button></div>
+      <div id="previewContent" class="preview-content"></div>
+    </div>
+  </div>
+
+  <input id="replaceInput" type="file" hidden>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+  <script src="./script.js"></script>
+</body>
+</html>

@@ -99,7 +99,7 @@ function subscribeRealtime(){
     .subscribe();
 }
 function renderAll(){
-  renderCounts(); renderPapers(); renderServices(); renderHomeServices(); renderTemplates(); renderArchive();
+  renderCounts(); renderPapers(); renderServices(); renderTemplates(); renderArchive();
 }
 function renderCounts(){
   $("#countSubmitted").textContent=papers.filter(p=>p.status==="submitted").length;

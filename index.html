@@ -60,9 +60,19 @@
 
     <section id="reviewService" class="view">
       <div class="card">
-        <div class="card-head">
-          <div><h2>外审服务</h2><div class="sub">记录你为期刊提供的同行评审服务。</div></div>
-          <button id="addServiceBtn" class="btn primary">＋ 新增外审服务</button>
+        <div class="card-head review-service-head">
+          <div class="review-service-title"><h2>外审服务</h2><div class="sub">记录你为期刊提供的同行评审服务。</div></div>
+          <div class="review-template-panel">
+            <div class="review-template-toolbar">
+              <div>
+                <b>审稿模板</b>
+                <div class="sub">支持任意格式；可预览、替换、下载和删除。</div>
+              </div>
+              <label class="btn primary compact-upload">＋ 新增模板<input id="reviewTemplateUpload" type="file" hidden multiple></label>
+            </div>
+            <div id="reviewTemplateList" class="review-template-list"></div>
+          </div>
+          <button id="addServiceBtn" class="btn primary review-service-add">＋ 新增外审服务</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -175,6 +185,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20260929-reviewmonitor1"></script>
+  <script src="./script.js?v=20260930-reviewtemplates1"></script>
 </body>
 </html>

@@ -114,9 +114,35 @@
     </section>
 
     <section id="archive" class="view">
-      <div class="card">
-        <div class="card-head"><h2>归档管理</h2></div>
-        <div class="table-wrap"><table><thead><tr><th>标题</th><th>期刊</th><th>链接</th><th>状态</th><th>日期</th><th>操作</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
+      <div class="card archive-card">
+        <div class="card-head archive-head">
+          <div>
+            <h2>归档管理</h2>
+            <div class="sub">已结束的我的论文与外审服务论文分别归档。</div>
+          </div>
+          <div class="archive-tabs">
+            <button class="archive-tab active" data-archive-tab="papers">我的论文</button>
+            <button class="archive-tab" data-archive-tab="services">外审服务论文</button>
+          </div>
+        </div>
+
+        <div id="archivePapersPanel" class="archive-panel active">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>标题</th><th>期刊</th><th>链接</th><th>状态</th><th>日期</th><th>操作</th></tr></thead>
+              <tbody id="archiveBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="archiveServicesPanel" class="archive-panel">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>标题</th><th>期刊</th><th>链接</th><th>稿件</th><th>审稿开始时间</th><th>审稿结束时间</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody id="archiveServiceBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -169,6 +195,10 @@
         <label>链接<input id="serviceLink" placeholder="https://..."></label>
         <label>审稿开始时间<input id="serviceStart" type="date"></label>
         <label>审稿结束时间<input id="serviceEnd" type="date"></label>
+        <label>审稿状态<select id="serviceStatus">
+          <option value="pending">未审</option>
+          <option value="reviewed">已审</option>
+        </select></label>
       </div>
       <div class="dialog-actions"><button class="btn" data-close="serviceModal">取消</button><button id="saveServiceBtn" class="btn primary">保存</button></div>
     </div>
@@ -185,6 +215,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20260930-reviewtemplates1"></script>
+  <script src="./script.js?v=20260930-servicearchive1"></script>
 </body>
 </html>

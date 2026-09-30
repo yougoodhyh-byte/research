@@ -238,7 +238,7 @@ function renderServices(){
       <td><div class="actions"><button class="btn" data-edit-service="${s.id}">编辑</button><button class="btn danger" data-delete-service="${s.id}">删除</button></div></td>
     </tr>`;
   }).join("")||`<tr><td class="empty" colspan="8">暂无外审服务记录</td></tr>`;
-  $("[data-service-sort]").forEach(th=>{const key=th.dataset.serviceSort;const st=sortState.reviewService;th.querySelector("span").textContent=st.key===key?(st.dir==="asc"?"▲":"▼"):"↕";});
+  $$("[data-service-sort]").forEach(th=>{const key=th.dataset.serviceSort;const st=sortState.reviewService;th.querySelector("span").textContent=st.key===key?(st.dir==="asc"?"▲":"▼"):"↕";});
 }
 function renderHomeServices(){
   const list=sortRows(services, {key:"end_date",dir:"asc"}).slice(0,5);
@@ -700,7 +700,7 @@ function isMobileFileUI(){
     || (navigator.maxTouchPoints||0)>0;
 }
 function closeMobileFileMenus(except=null){
-  $("[data-file-control].mobile-open").forEach(x=>{
+  $$("[data-file-control].mobile-open").forEach(x=>{
     if(x===except) return;
     x.classList.remove("mobile-open");
     x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");

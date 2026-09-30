@@ -31,6 +31,7 @@ let sortState = {
 };
 let replaceContext=null;
 let archiveTab="papers";
+let pendingServiceFiles=[];
 
 function showSetup(){
   const b=$("#setupBanner");
@@ -348,11 +349,195 @@ async function savePaper(){
   const q=id?sb.from("papers").update(row).eq("id",id):sb.from("papers").insert(row);
   const {error}=await q; if(error) return toastError(error); $("#paperModal").classList.add("hidden");
 }
+
+function manuscriptExt(name){
+  const m=String(name||"").toLowerCase().match(/\.([a-z0-9]+)$/);
+  return m?m[1]:"";
+}
+function manuscriptCodePrefix(name){
+  const base=String(name||"").replace(/\.[^.]+$/,"").trim();
+  const m=base.match(/^([A-Za-z][A-Za-z0-9]{1,12})-D-/i);
+  return m?m[1].toUpperCase():"";
+}
+function journalFromKnownFiles(file){
+  const prefix=manuscriptCodePrefix(file.name);
+  if(!prefix) return "";
+  for(const existing of files){
+    if(existing.kind!=="review_manuscript"||!existing.review_service_id) continue;
+    if(manuscriptCodePrefix(existing.file_name)!==prefix) continue;
+    const s=services.find(x=>x.id===existing.review_service_id);
+    if(s?.journal) return s.journal;
+  }
+  return "";
+}
+function cleanDetectedText(s){
+  return String(s||"")
+    .replace(/[\u0000-\u001f]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function usefulPdfTitle(value){
+  const s=cleanDetectedText(value);
+  if(!s||s.length<8||s.length>350) return "";
+  if(/^(untitled|microsoft word|document|manuscript|article)$/i.test(s)) return "";
+  return s;
+}
+function detectKnownJournal(text,file){
+  const source=String(text||"").toLowerCase();
+  const journals=[...new Set(services.map(s=>String(s.journal||"").trim()).filter(Boolean))]
+    .sort((a,b)=>b.length-a.length);
+  for(const journal of journals){
+    if(source.includes(journal.toLowerCase())) return journal;
+  }
+  const mapped=journalFromKnownFiles(file);
+  if(mapped) return mapped;
+
+  const lines=String(text||"").split(/\r?\n/).map(cleanDetectedText).filter(Boolean);
+  const patterns=[
+    /^(?:journal(?:\s+name)?|submitted\s+to|submission\s+to|manuscript\s+submitted\s+to)\s*[:：-]\s*(.+)$/i,
+    /^(?:elsevier\s+editorial\s+system|editorial\s+manager)(?:\(tm\))?\s+for\s+(.+)$/i,
+    /^for\s+the\s+journal\s+(.+)$/i
+  ];
+  for(const line of lines.slice(0,80)){
+    for(const re of patterns){
+      const m=line.match(re);
+      if(m){
+        const value=cleanDetectedText(m[1]).replace(/[|•].*$/,"").trim();
+        if(value.length>=4&&value.length<=140) return value;
+      }
+    }
+  }
+  return "";
+}
+function detectTitleFromLines(lines){
+  const cleaned=lines.map(cleanDetectedText).filter(Boolean);
+  const stop=/^(abstract|keywords?|highlights?|introduction|article\s+info|research\s+article)\b/i;
+  const noise=/^(manuscript|page\s+\d+|confidential|reviewer|review copy|author|authors|corresponding author|declaration|cover letter)\b/i;
+  const candidates=[];
+  for(const line of cleaned.slice(0,35)){
+    if(stop.test(line)) break;
+    if(noise.test(line)) continue;
+    if(/^[A-Z]{2,12}-D-\d+/i.test(line)) continue;
+    if(/@|https?:\/\//i.test(line)) continue;
+    if(line.length>=18&&line.length<=220) candidates.push(line);
+    if(candidates.length>=3) break;
+  }
+  if(!candidates.length) return "";
+  let title=candidates[0];
+  if(title.length<95&&candidates[1]&&candidates[1].length<150){
+    const combined=title+" "+candidates[1];
+    if(combined.length<=260&&!/^(abstract|keywords?)\b/i.test(candidates[1])) title=combined;
+  }
+  return cleanDetectedText(title);
+}
+async function extractPdfInfo(file){
+  if(!window.pdfjsLib) return {title:"",journal:"",text:""};
+  try{
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const doc=await window.pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    let metaTitle="";
+    try{
+      const meta=await doc.getMetadata();
+      metaTitle=usefulPdfTitle(meta?.info?.Title||meta?.metadata?.get?.("dc:title")||"");
+    }catch{}
+    const allLines=[];
+    const pages=Math.min(doc.numPages,2);
+    for(let p=1;p<=pages;p++){
+      const page=await doc.getPage(p);
+      const tc=await page.getTextContent();
+      const rows=[];
+      for(const item of tc.items||[]){
+        const str=cleanDetectedText(item.str);
+        if(!str) continue;
+        const y=Math.round((item.transform?.[5]||0)*2)/2;
+        let row=rows.find(r=>Math.abs(r.y-y)<=1.5);
+        if(!row){row={y,items:[]};rows.push(row);}
+        row.items.push({x:item.transform?.[4]||0,str});
+      }
+      rows.sort((a,b)=>b.y-a.y);
+      for(const row of rows){
+        row.items.sort((a,b)=>a.x-b.x);
+        const line=cleanDetectedText(row.items.map(x=>x.str).join(" "));
+        if(line) allLines.push(line);
+      }
+    }
+    const text=allLines.join("\n");
+    return {
+      title:metaTitle||detectTitleFromLines(allLines),
+      journal:detectKnownJournal(text,file),
+      text
+    };
+  }catch(error){
+    console.warn("PDF recognition failed",error);
+    return {title:"",journal:journalFromKnownFiles(file),text:""};
+  }
+}
+async function extractDocxInfo(file){
+  if(!window.mammoth) return {title:"",journal:journalFromKnownFiles(file),text:""};
+  try{
+    const result=await window.mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});
+    const text=String(result.value||"");
+    return {
+      title:detectTitleFromLines(text.split(/\r?\n/)),
+      journal:detectKnownJournal(text,file),
+      text
+    };
+  }catch(error){
+    console.warn("DOCX recognition failed",error);
+    return {title:"",journal:journalFromKnownFiles(file),text:""};
+  }
+}
+async function extractManuscriptInfo(file){
+  const ext=manuscriptExt(file.name);
+  if(ext==="pdf") return extractPdfInfo(file);
+  if(ext==="docx") return extractDocxInfo(file);
+  if(["txt","md","rtf"].includes(ext)){
+    try{
+      const text=await file.text();
+      return {title:detectTitleFromLines(text.split(/\r?\n/)),journal:detectKnownJournal(text,file),text};
+    }catch{}
+  }
+  const raw=String(file.name||"").replace(/\.[^.]+$/,"").replace(/[_]+/g," ").trim();
+  const coded=/^[A-Za-z][A-Za-z0-9]{1,12}-D-\d+/i.test(raw);
+  return {title:coded?"":cleanDetectedText(raw),journal:journalFromKnownFiles(file),text:""};
+}
+function renderServiceModalFiles(serviceId=null){
+  const box=$("#serviceModalFiles");
+  if(!box) return;
+  const existing=serviceId?serviceFiles(serviceId):[];
+  const existingHtml=existing.map(f=>`<div class="service-modal-file existing"><span>${esc(f.file_name)}</span><small>已上传</small></div>`).join("");
+  const pendingHtml=pendingServiceFiles.map((f,i)=>`<div class="service-modal-file pending"><span>${esc(f.name)}</span><button type="button" data-remove-pending-service-file="${i}" aria-label="移除 ${esc(f.name)}">×</button></div>`).join("");
+  box.innerHTML=existingHtml+pendingHtml||'<div class="service-modal-file-empty">尚未添加稿件</div>';
+}
+async function recognizeServiceManuscript(file){
+  const status=$("#serviceManuscriptStatus");
+  if(status) status.textContent="正在识别标题和期刊名…";
+  const info=await extractManuscriptInfo(file);
+  let filled=[];
+  if(info.title&&!$("#serviceTitle").value.trim()){
+    $("#serviceTitle").value=info.title;
+    filled.push("标题");
+  }
+  if(info.journal&&!$("#serviceJournal").value.trim()){
+    $("#serviceJournal").value=info.journal;
+    filled.push("期刊名");
+  }
+  if(status){
+    if(filled.length) status.textContent="已自动填充："+filled.join("、")+"。请核对后保存。";
+    else if(info.title||info.journal) status.textContent="已读取稿件信息；现有标题或期刊名未被覆盖。";
+    else status.textContent="未能可靠识别标题或期刊名，请手动填写。稿件仍可正常上传。";
+  }
+}
+
 function openService(id=null){
   const s=id?services.find(x=>x.id===id):null;
+  pendingServiceFiles=[];
+  $("#serviceManuscriptFiles").value="";
+  $("#serviceManuscriptStatus").textContent="";
   $("#serviceId").value=s?.id||""; $("#serviceTitle").value=s?.title||""; $("#serviceJournal").value=s?.journal||""; $("#serviceLink").value=s?.link||"";
   $("#serviceStart").value=s?.start_date||todayISO(); $("#serviceEnd").value=s?.end_date||"";
   $("#serviceStatus").value=s?.status||"pending";
+  renderServiceModalFiles(s?.id||null);
   $("#serviceModal").classList.remove("hidden");
 }
 async function saveService(){
@@ -366,12 +551,23 @@ async function saveService(){
     status:$("#serviceStatus").value||"pending",
     updated_at:new Date().toISOString()
   };
-  if(!row.title) return alert("请填写标题。");
-  const q=id?sb.from("review_services").update(row).eq("id",id):sb.from("review_services").insert(row);
-  const {error}=await q;
-  if(error) return toastError(error);
+  if(!row.title) return alert("请填写标题，或先添加稿件尝试自动识别。");
+
+  let serviceId=id;
+  if(id){
+    const {error}=await sb.from("review_services").update(row).eq("id",id);
+    if(error) return toastError(error);
+  }else{
+    const {data,error}=await sb.from("review_services").insert(row).select("id").single();
+    if(error) return toastError(error);
+    serviceId=data.id;
+  }
+
+  const queued=[...pendingServiceFiles];
+  pendingServiceFiles=[];
+  for(const file of queued) await uploadFile(file,"review_manuscript",serviceId);
   $("#serviceModal").classList.add("hidden");
-  await loadServices();
+  await Promise.all([loadServices(),loadFiles()]);
   renderAll();
   if(row.status==="reviewed"){
     archiveTab="services";
@@ -516,7 +712,7 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-remove-pending-service-file],[data-jump]"
   );
   if(!b) return;
 
@@ -549,6 +745,13 @@ document.addEventListener("click", async e=>{
     archiveTab=b.dataset.archiveTab;
     renderArchiveTabs();
   }
+  if(b.dataset.removePendingServiceFile!==undefined){
+    const idx=Number(b.dataset.removePendingServiceFile);
+    if(Number.isInteger(idx)&&idx>=0&&idx<pendingServiceFiles.length){
+      pendingServiceFiles.splice(idx,1);
+      renderServiceModalFiles($("#serviceId").value||null);
+    }
+  }
   if(isMobileFileUI() && b.closest("[data-file-control]") && !b.dataset.fileMenu){
     closeMobileFileMenus();
   }
@@ -576,6 +779,15 @@ $("#saveServiceBtn").addEventListener("click",saveService);
 $("#loginBtn").addEventListener("click",()=>login(false));
 $("#signupBtn").addEventListener("click",()=>login(true));
 $("#logoutBtn").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
+$("#serviceManuscriptFiles").addEventListener("change",async e=>{
+  const selected=[...(e.target.files||[])];
+  if(!selected.length) return;
+  pendingServiceFiles.push(...selected);
+  renderServiceModalFiles($("#serviceId").value||null);
+  const preferred=selected.find(f=>["pdf","docx","txt","md","rtf"].includes(manuscriptExt(f.name)))||selected[0];
+  await recognizeServiceManuscript(preferred);
+  e.target.value="";
+});
 $("#templateUpload").addEventListener("change",async e=>{for(const f of [...e.target.files])await uploadFile(f,"template");e.target.value="";});
 $("#reviewTemplateUpload").addEventListener("change",async e=>{
   for(const f of [...e.target.files]) await uploadFile(f,"template",null,null,"review_template");

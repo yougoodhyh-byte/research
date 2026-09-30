@@ -216,20 +216,28 @@ function storageFolder(f){
 function isReviewTemplate(f){
   return f.kind==="template" && storageFolder(f)==="review_template";
 }
-function serviceFile(serviceId){ return files.find(f=>f.kind==="review_manuscript"&&f.review_service_id===serviceId); }
+function serviceFiles(serviceId){
+  return files.filter(f=>f.kind==="review_manuscript"&&f.review_service_id===serviceId);
+}
+function serviceFilesHtml(serviceId,allowAdd=true){
+  const list=serviceFiles(serviceId);
+  return `<div class="service-file-list">
+    ${list.map(f=>fileActions(f)).join("")}
+    ${allowAdd?`<label class="service-file-add">＋ 新增文件<input type="file" hidden multiple data-upload-review="${serviceId}"></label>`:""}
+  </div>`;
+}
 function renderServices(){
   const body=$("#serviceBody");
   const list=sortRows(services.filter(s=>(s.status||"pending")==="pending"),sortState.reviewService);
   body.innerHTML=list.map(s=>{
-    const f=serviceFile(s.id);
     return `<tr>
       <td>${esc(s.title)}</td><td>${esc(s.journal||"—")}</td><td>${linkHtml(s.link)}</td>
-      <td>${f?fileActions(f):`<label class="btn">上传稿件<input type="file" hidden data-upload-review="${s.id}"></label>`}</td>
+      <td>${serviceFilesHtml(s.id,true)}</td>
       <td>${fmtDate(s.start_date)}</td><td>${fmtDate(s.end_date)}</td><td>${remainingHtml(s.end_date)}</td>
       <td><div class="actions"><button class="btn" data-edit-service="${s.id}">编辑</button><button class="btn danger" data-delete-service="${s.id}">删除</button></div></td>
     </tr>`;
   }).join("")||`<tr><td class="empty" colspan="8">暂无外审服务记录</td></tr>`;
-  $$("[data-service-sort]").forEach(th=>{const key=th.dataset.serviceSort;const st=sortState.reviewService;th.querySelector("span").textContent=st.key===key?(st.dir==="asc"?"▲":"▼"):"↕";});
+  $("[data-service-sort]").forEach(th=>{const key=th.dataset.serviceSort;const st=sortState.reviewService;th.querySelector("span").textContent=st.key===key?(st.dir==="asc"?"▲":"▼"):"↕";});
 }
 function renderHomeServices(){
   const list=sortRows(services, {key:"end_date",dir:"asc"}).slice(0,5);
@@ -289,12 +297,11 @@ function renderArchive(){
 
   const archivedServices=services.filter(s=>(s.status||"pending")==="reviewed");
   $("#archiveServiceBody").innerHTML=archivedServices.map(s=>{
-    const f=serviceFile(s.id);
     return `<tr>
       <td>${esc(s.title)}</td>
       <td>${esc(s.journal||"—")}</td>
       <td>${linkHtml(s.link)}</td>
-      <td>${f?fileActions(f):"—"}</td>
+      <td>${serviceFilesHtml(s.id,true)}</td>
       <td>${fmtDate(s.start_date)}</td>
       <td>${fmtDate(s.end_date)}</td>
       <td><span class="status-chip reviewed">已审</span></td>
@@ -377,8 +384,17 @@ async function deletePaper(id){
   const {error}=await sb.from("papers").delete().eq("id",id); if(error) toastError(error);
 }
 async function deleteService(id){
-  const s=services.find(x=>x.id===id); if(!confirm(`确认删除外审服务“${s?.title||""}”吗？其关联稿件文件也会一并删除。`)) return;
-  const f=serviceFile(id); if(f) await deleteFileObject(f,false);
+  const s=services.find(x=>x.id===id); if(!confirm(`确认删除外审服务“${s?.title||""}”吗？其关联的全部稿件文件也会一并删除。`)) return;
+  const linked=serviceFiles(id);
+  if(linked.length){
+    const paths=linked.map(f=>f.storage_path).filter(Boolean);
+    if(paths.length){
+      const {error:stErr}=await sb.storage.from(BUCKET).remove(paths);
+      if(stErr) return toastError(stErr);
+    }
+    const {error:fileErr}=await sb.from("research_files").delete().eq("review_service_id",id).eq("kind","review_manuscript");
+    if(fileErr) return toastError(fileErr);
+  }
   const {error}=await sb.from("review_services").delete().eq("id",id); if(error) toastError(error);
 }
 function safeExtension(name){
@@ -547,7 +563,11 @@ document.addEventListener("change", async e=>{
     const id=e.target.dataset.statusPaper, status=e.target.value, row={status,event_date:todayISO(),deadline:status==="revision"?null:null,updated_at:new Date().toISOString()};
     const {error}=await sb.from("papers").update(row).eq("id",id); if(error)toastError(error);
   }
-  if(e.target.matches("[data-upload-review]")){const file=e.target.files?.[0];if(file)await uploadFile(file,"review_manuscript",e.target.dataset.uploadReview);}
+  if(e.target.matches("[data-upload-review]")){
+    const selected=[...(e.target.files||[])];
+    for(const file of selected) await uploadFile(file,"review_manuscript",e.target.dataset.uploadReview);
+    e.target.value="";
+  }
 });
 $("#addServiceBtn").addEventListener("click",()=>openService());
 $("#paperStatus").addEventListener("change",syncPaperModal);

@@ -505,6 +505,7 @@ document.addEventListener("click", async e=>{
     const control=b.closest("[data-file-control]");
     if(isMobileFileUI()){
       e.preventDefault();
+      e.stopPropagation();
       const willOpen=!control.classList.contains("mobile-open");
       closeMobileFileMenus(control);
       control.classList.toggle("mobile-open",willOpen);

@@ -482,7 +482,10 @@ async function dismissAlert(id){
 function toastError(error){ console.error(error); alert(error?.message||String(error)); }
 
 function isMobileFileUI(){
-  return window.matchMedia("(max-width: 820px)").matches;
+  return window.matchMedia("(max-width: 820px)").matches
+    || window.matchMedia("(hover: none)").matches
+    || window.matchMedia("(pointer: coarse)").matches
+    || (navigator.maxTouchPoints||0)>0;
 }
 function closeMobileFileMenus(except=null){
   $("[data-file-control].mobile-open").forEach(x=>{

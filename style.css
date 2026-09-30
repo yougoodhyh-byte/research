@@ -181,3 +181,13 @@ td .file-control .file-trigger-name{max-width:190px}
     margin-left:0;
   }
 }
+
+/* Multiple review manuscript files */
+.service-file-list{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:150px}
+.service-file-list .file-control{max-width:100%}
+.service-file-add{display:inline-flex;align-items:center;min-height:28px;padding:4px 8px;border:1px dashed #cbd5e3;border-radius:7px;color:#617089;background:#fafbfd;cursor:pointer;font-size:9pt;white-space:nowrap}
+.service-file-add:hover{border-color:#8bb3ea;color:#176bdc;background:#f4f8ff}
+@media(max-width:820px){
+  .service-file-list{gap:7px}
+  .service-file-add{min-height:34px;padding:6px 9px}
+}

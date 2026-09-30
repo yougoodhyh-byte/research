@@ -191,3 +191,21 @@ td .file-control .file-trigger-name{max-width:190px}
   .service-file-list{gap:7px}
   .service-file-add{min-height:34px;padding:6px 9px}
 }
+
+/* Service modal manuscript recognition */
+.service-manuscript-field{border:1px solid #e2e8f1;border-radius:10px;background:#f8fafc;padding:11px}
+.service-manuscript-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600}
+.service-manuscript-pick{font-weight:400;padding:6px 9px;white-space:nowrap}
+.service-manuscript-note{font-size:9pt;color:var(--muted);line-height:1.55;margin-top:6px}
+.service-manuscript-status{font-size:9pt;color:#176bdc;min-height:18px;margin-top:6px}
+.service-modal-files{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+.service-modal-file{display:flex;align-items:center;gap:8px;min-width:0;background:#fff;border:1px solid #e2e8f1;border-radius:8px;padding:7px 9px}
+.service-modal-file span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.service-modal-file small{font-size:8.5pt;color:var(--muted);white-space:nowrap}
+.service-modal-file button{border:0;background:transparent;color:var(--danger);font-size:14px;cursor:pointer;padding:1px 5px;border-radius:5px}
+.service-modal-file button:hover{background:#fff0f0}
+.service-modal-file-empty{font-size:9pt;color:#98a2b3;padding:4px 1px}
+@media(max-width:600px){
+  .service-manuscript-head{align-items:flex-start;flex-direction:column}
+  .service-manuscript-pick{width:100%;text-align:center}
+}

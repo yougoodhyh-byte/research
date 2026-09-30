@@ -236,13 +236,19 @@ function renderHomeServices(){
   $("#homeServiceBody").innerHTML=list.map(s=>`<tr><td>${esc(s.title)}</td><td>${esc(s.journal||"—")}</td><td>${fmtDate(s.end_date)}</td><td>${remainingHtml(s.end_date)}</td></tr>`).join("")
     || `<tr><td colspan="4" class="empty">暂无外审服务记录</td></tr>`;
 }
-function fileActions(f){
-  return `<div class="actions">
-    <button class="btn" data-preview-file="${f.id}">预览</button>
-    <button class="btn" data-download-file="${f.id}">下载</button>
-    <button class="btn" data-replace-file="${f.id}">替换</button>
-    <button class="btn danger" data-delete-file="${f.id}">删除</button>
-  </div><div class="file-meta">${esc(f.file_name)}</div>`;
+function fileActions(f,compact=false){
+  return `<div class="file-control ${compact?"compact":""}" data-file-control>
+    <button type="button" class="file-trigger" data-file-menu="${f.id}" aria-expanded="false" title="${esc(f.file_name)}">
+      <span class="file-trigger-name">${esc(f.file_name)}</span>
+      <span class="file-trigger-more" aria-hidden="true">•••</span>
+    </button>
+    <div class="file-hover-actions" role="menu">
+      <button class="mini-btn" data-preview-file="${f.id}">预览</button>
+      <button class="mini-btn" data-download-file="${f.id}">下载</button>
+      <button class="mini-btn" data-replace-file="${f.id}">替换</button>
+      <button class="mini-btn danger" data-delete-file="${f.id}">删除</button>
+    </div>
+  </div>`;
 }
 function renderReviewTemplates(){
   const box=$("#reviewTemplateList");
@@ -250,19 +256,18 @@ function renderReviewTemplates(){
   const list=files.filter(isReviewTemplate);
   box.innerHTML=list.map(f=>`
     <div class="review-template-item">
-      <div class="review-template-name" title="${esc(f.file_name)}">${esc(f.file_name)}</div>
-      <div class="review-template-actions">
-        <button class="mini-btn" data-preview-file="${f.id}">预览</button>
-        <button class="mini-btn" data-download-file="${f.id}">下载</button>
-        <button class="mini-btn" data-replace-file="${f.id}">替换</button>
-        <button class="mini-btn danger" data-delete-file="${f.id}">删除</button>
-      </div>
+      ${fileActions(f,true)}
     </div>
   `).join("")||`<div class="review-template-empty">暂无审稿模板</div>`;
 }
 function renderTemplates(){
   $("#templateList").innerHTML=files.filter(f=>f.kind==="template"&&!isReviewTemplate(f)).map(f=>`
-    <div class="file-row"><div><div class="file-name">${esc(f.file_name)}</div><div class="file-meta">${fmtSize(f.file_size)} · ${new Date(f.created_at).toLocaleString("zh-CN")}</div></div>${fileActions(f)}</div>
+    <div class="file-row">
+      <div>
+        ${fileActions(f)}
+        <div class="file-meta">${fmtSize(f.file_size)} · ${new Date(f.created_at).toLocaleString("zh-CN")}</div>
+      </div>
+    </div>
   `).join("")||`<div class="empty">暂无模板文件</div>`;
 }
 function renderArchiveTabs(){
@@ -481,9 +486,23 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-jump]"
   );
   if(!b) return;
+
+  if(b.dataset.fileMenu){
+    const control=b.closest("[data-file-control]");
+    if(window.matchMedia("(hover: none), (pointer: coarse)").matches){
+      const willOpen=!control.classList.contains("mobile-open");
+      $("[data-file-control].mobile-open").forEach(x=>{
+        x.classList.remove("mobile-open");
+        x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
+      });
+      control.classList.toggle("mobile-open",willOpen);
+      b.setAttribute("aria-expanded",willOpen?"true":"false");
+    }
+    return;
+  }
 
   if(b.dataset.addPaper) openPaper(b.dataset.addPaper);
   if(b.dataset.editPaper) openPaper(null,b.dataset.editPaper);
@@ -501,6 +520,14 @@ document.addEventListener("click", async e=>{
     archiveTab=b.dataset.archiveTab;
     renderArchiveTabs();
   }
+});
+document.addEventListener("click",e=>{
+  if(!window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+  if(e.target.closest("[data-file-control]")) return;
+  $("[data-file-control].mobile-open").forEach(x=>{
+    x.classList.remove("mobile-open");
+    x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
+  });
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){

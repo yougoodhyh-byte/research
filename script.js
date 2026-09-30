@@ -481,6 +481,17 @@ async function dismissAlert(id){
 }
 function toastError(error){ console.error(error); alert(error?.message||String(error)); }
 
+function isMobileFileUI(){
+  return window.matchMedia("(max-width: 820px)").matches;
+}
+function closeMobileFileMenus(except=null){
+  $("[data-file-control].mobile-open").forEach(x=>{
+    if(x===except) return;
+    x.classList.remove("mobile-open");
+    x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
+  });
+}
+
 document.addEventListener("click", async e=>{
   const b=e.target.closest(
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
@@ -492,12 +503,10 @@ document.addEventListener("click", async e=>{
 
   if(b.dataset.fileMenu){
     const control=b.closest("[data-file-control]");
-    if(window.matchMedia("(hover: none), (pointer: coarse)").matches){
+    if(isMobileFileUI()){
+      e.preventDefault();
       const willOpen=!control.classList.contains("mobile-open");
-      $("[data-file-control].mobile-open").forEach(x=>{
-        x.classList.remove("mobile-open");
-        x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
-      });
+      closeMobileFileMenus(control);
       control.classList.toggle("mobile-open",willOpen);
       b.setAttribute("aria-expanded",willOpen?"true":"false");
     }
@@ -520,14 +529,14 @@ document.addEventListener("click", async e=>{
     archiveTab=b.dataset.archiveTab;
     renderArchiveTabs();
   }
+  if(isMobileFileUI() && b.closest("[data-file-control]") && !b.dataset.fileMenu){
+    closeMobileFileMenus();
+  }
 });
 document.addEventListener("click",e=>{
-  if(!window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+  if(!isMobileFileUI()) return;
   if(e.target.closest("[data-file-control]")) return;
-  $("[data-file-control].mobile-open").forEach(x=>{
-    x.classList.remove("mobile-open");
-    x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
-  });
+  closeMobileFileMenus();
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){

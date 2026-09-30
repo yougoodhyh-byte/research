@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20260930-multireviewfiles1">
+  <link rel="stylesheet" href="./style.css?v=20260930-serviceautofill1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -199,6 +199,15 @@
           <option value="pending">未审</option>
           <option value="reviewed">已审</option>
         </select></label>
+        <div class="full service-manuscript-field">
+          <div class="service-manuscript-head">
+            <span>稿件</span>
+            <label class="btn service-manuscript-pick">＋ 添加稿件<input id="serviceManuscriptFiles" type="file" hidden multiple></label>
+          </div>
+          <div class="service-manuscript-note">选择 PDF 或 DOCX 后，会自动尝试识别论文标题和期刊名；识别结果仍可手动修改。</div>
+          <div id="serviceManuscriptStatus" class="service-manuscript-status"></div>
+          <div id="serviceModalFiles" class="service-modal-files"></div>
+        </div>
       </div>
       <div class="dialog-actions"><button class="btn" data-close="serviceModal">取消</button><button id="saveServiceBtn" class="btn primary">保存</button></div>
     </div>
@@ -214,7 +223,9 @@
   <input id="replaceInput" type="file" hidden>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20260930-multireviewfiles1"></script>
+  <script src="./script.js?v=20260930-serviceautofill1"></script>
 </body>
 </html>

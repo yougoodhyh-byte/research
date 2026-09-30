@@ -508,7 +508,7 @@ document.addEventListener("click", async e=>{
     const control=b.closest("[data-file-control]");
     if(isMobileFileUI()){
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       const willOpen=!control.classList.contains("mobile-open");
       closeMobileFileMenus(control);
       control.classList.toggle("mobile-open",willOpen);
@@ -537,7 +537,7 @@ document.addEventListener("click", async e=>{
     closeMobileFileMenus();
   }
 });
-document.addEventListener("click",e=>{
+document.addEventListener("pointerdown",e=>{
   if(!isMobileFileUI()) return;
   if(e.target.closest("[data-file-control]")) return;
   closeMobileFileMenus();

@@ -32,6 +32,276 @@ let sortState = {
 let replaceContext=null;
 let archiveTab="papers";
 let pendingServiceFiles=[];
+const OFFLINE_DRAFT_PREFIX="research_offline_draft_v1:";
+const CLOUD_CACHE_PREFIX="research_cloud_cache_v1:";
+let draftPromptDismissed=false;
+let syncingOfflineDraft=false;
+
+
+function draftKey(){
+  return OFFLINE_DRAFT_PREFIX+(user?.id||"guest");
+}
+function cloudCacheKey(){
+  return CLOUD_CACHE_PREFIX+(user?.id||"guest");
+}
+function readOfflineDraft(){
+  try{
+    const raw=localStorage.getItem(draftKey());
+    if(!raw) return {version:1,created_at:null,updated_at:null,operations:[]};
+    const parsed=JSON.parse(raw);
+    if(!parsed||!Array.isArray(parsed.operations)) throw new Error("bad draft");
+    return parsed;
+  }catch{
+    return {version:1,created_at:null,updated_at:null,operations:[]};
+  }
+}
+function writeOfflineDraft(draft){
+  if(!draft.operations.length){
+    localStorage.removeItem(draftKey());
+    return;
+  }
+  localStorage.setItem(draftKey(),JSON.stringify(draft));
+}
+function hasOfflineDraft(){
+  return readOfflineDraft().operations.length>0;
+}
+function isNetworkError(error){
+  const msg=String(error?.message||error||"").toLowerCase();
+  return !navigator.onLine || /failed to fetch|network|load failed|fetch failed|timeout|connection|offline/.test(msg);
+}
+function cacheCloudState(){
+  if(!user) return;
+  try{
+    localStorage.setItem(cloudCacheKey(),JSON.stringify({
+      saved_at:new Date().toISOString(),
+      papers,services,files,aiNote
+    }));
+  }catch(error){
+    console.warn("cloud cache failed",error);
+  }
+}
+function loadCloudCache(){
+  try{
+    const raw=localStorage.getItem(cloudCacheKey());
+    if(!raw) return false;
+    const cached=JSON.parse(raw);
+    papers=Array.isArray(cached.papers)?cached.papers:[];
+    services=Array.isArray(cached.services)?cached.services:[];
+    files=Array.isArray(cached.files)?cached.files:[];
+    aiNote=typeof cached.aiNote==="string"?cached.aiNote:"";
+    notifications=[];
+    monitorReady=false;
+    if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
+    return true;
+  }catch(error){
+    console.warn("cloud cache read failed",error);
+    return false;
+  }
+}
+function draftDescription(entity,action,payload,label=""){
+  if(entity==="paper"){
+    const name=payload?.title||label||"未命名稿件";
+    if(action==="create") return "新增稿件："+name;
+    if(action==="delete") return "删除稿件："+name;
+    return "修改稿件："+name;
+  }
+  if(entity==="service"){
+    const name=payload?.title||label||"未命名外审服务";
+    if(action==="create") return "新增外审服务："+name;
+    if(action==="delete") return "删除外审服务："+name;
+    return "修改外审服务："+name;
+  }
+  if(entity==="ai") return "更新“投稿模板 → AI辅助”内容";
+  return label||"网站内容修改";
+}
+function coalesceDraftOperation(draft,op){
+  if(op.entity==="ai"){
+    draft.operations=draft.operations.filter(x=>x.entity!=="ai");
+    draft.operations.push(op);
+    return;
+  }
+  const same=draft.operations.filter(x=>x.entity===op.entity&&x.id===op.id);
+  if(op.action==="delete"){
+    draft.operations=draft.operations.filter(x=>!(x.entity===op.entity&&x.id===op.id));
+    draft.operations.push(op);
+    return;
+  }
+  const create=same.find(x=>x.action==="create");
+  if(create){
+    create.payload={...create.payload,...op.payload};
+    create.description=draftDescription(op.entity,"create",create.payload);
+    create.timestamp=op.timestamp;
+    return;
+  }
+  const update=[...same].reverse().find(x=>x.action==="update");
+  if(update&&op.action==="update"){
+    update.payload={...update.payload,...op.payload};
+    update.description=op.description;
+    update.timestamp=op.timestamp;
+    return;
+  }
+  draft.operations.push(op);
+}
+function applyDraftOperation(op){
+  if(op.entity==="paper"){
+    if(op.action==="delete"){
+      papers=papers.filter(x=>x.id!==op.id);
+    }else{
+      const row={...op.payload,id:op.id};
+      const i=papers.findIndex(x=>x.id===op.id);
+      if(i>=0) papers[i]={...papers[i],...row}; else papers.unshift(row);
+    }
+  }else if(op.entity==="service"){
+    if(op.action==="delete"){
+      services=services.filter(x=>x.id!==op.id);
+    }else{
+      const row={...op.payload,id:op.id};
+      const i=services.findIndex(x=>x.id===op.id);
+      if(i>=0) services[i]={...services[i],...row}; else services.unshift(row);
+    }
+  }else if(op.entity==="ai"){
+    aiNote=op.payload?.content_html||"";
+    if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
+  }
+}
+function applyOfflineDraftOverlay(){
+  const draft=readOfflineDraft();
+  draft.operations.forEach(applyDraftOperation);
+}
+function queueOfflineDraft({entity,action,id,payload={},description=""}){
+  const now=new Date().toISOString();
+  const draft=readOfflineDraft();
+  if(!draft.created_at) draft.created_at=now;
+  draft.updated_at=now;
+  const op={
+    key:crypto.randomUUID(),
+    entity,action,id,
+    payload,
+    description:description||draftDescription(entity,action,payload),
+    timestamp:now
+  };
+  coalesceDraftOperation(draft,op);
+  writeOfflineDraft(draft);
+  applyDraftOperation(op);
+  draftPromptDismissed=false;
+  renderAll();
+  renderOfflineState();
+}
+function renderOfflineState(){
+  const offline=!navigator.onLine;
+  $("#connectionStatus")?.classList.toggle("hidden",!offline);
+
+  const draft=readOfflineDraft();
+  const has=draft.operations.length>0;
+  const banner=$("#offlineDraftBanner");
+  const canPrompt=has&&!draftPromptDismissed;
+  if(banner) banner.classList.toggle("hidden",!canPrompt);
+
+  if(has){
+    const meta=$("#offlineDraftMeta");
+    if(meta){
+      const when=draft.updated_at?new Date(draft.updated_at).toLocaleString("zh-CN"):"";
+      meta.textContent="共 "+draft.operations.length+" 项修改"+(when?" · 最近保存 "+when:"");
+    }
+    const list=$("#offlineDraftList");
+    if(list) list.innerHTML=draft.operations.map(op=>"<li>"+esc(op.description)+"</li>").join("");
+  }
+
+  const badge=$("#syncBadge");
+  if(badge){
+    if(offline){
+      badge.textContent=has?"离线 · 草稿已保存":"离线";
+      badge.classList.add("offline");
+    }else if(has){
+      badge.textContent="草稿待同步";
+      badge.classList.add("draft");
+      badge.classList.remove("offline");
+    }else{
+      badge.textContent="云端同步";
+      badge.classList.remove("offline","draft");
+    }
+  }
+  const syncBtn=$("#syncOfflineDraftBtn");
+  if(syncBtn) syncBtn.disabled=offline||syncingOfflineDraft;
+}
+async function runDraftOperation(op){
+  if(op.entity==="paper"){
+    if(op.action==="create"){
+      const row={...op.payload,id:op.id};
+      const {error}=await sb.from("papers").insert(row);
+      if(error) throw error;
+    }else if(op.action==="update"){
+      const {error}=await sb.from("papers").update(op.payload).eq("id",op.id);
+      if(error) throw error;
+    }else if(op.action==="delete"){
+      const {error}=await sb.from("papers").delete().eq("id",op.id);
+      if(error) throw error;
+    }
+    return;
+  }
+  if(op.entity==="service"){
+    if(op.action==="create"){
+      const row={...op.payload,id:op.id};
+      const {error}=await sb.from("review_services").insert(row);
+      if(error) throw error;
+    }else if(op.action==="update"){
+      const {error}=await sb.from("review_services").update(op.payload).eq("id",op.id);
+      if(error) throw error;
+    }else if(op.action==="delete"){
+      const {data:linked,error:readErr}=await sb.from("research_files").select("id,storage_path").eq("review_service_id",op.id).eq("kind","review_manuscript");
+      if(readErr) throw readErr;
+      const paths=(linked||[]).map(x=>x.storage_path).filter(Boolean);
+      if(paths.length){
+        const {error}=await sb.storage.from(BUCKET).remove(paths);
+        if(error) throw error;
+      }
+      const {error:fileErr}=await sb.from("research_files").delete().eq("review_service_id",op.id).eq("kind","review_manuscript");
+      if(fileErr) throw fileErr;
+      const {error}=await sb.from("review_services").delete().eq("id",op.id);
+      if(error) throw error;
+    }
+    return;
+  }
+  if(op.entity==="ai"){
+    const {error}=await sb.from("ai_notes").upsert({
+      owner_id:user.id,
+      content_html:op.payload?.content_html||"",
+      updated_at:op.payload?.updated_at||new Date().toISOString()
+    },{onConflict:"owner_id"});
+    if(error) throw error;
+  }
+}
+async function syncOfflineDraft(){
+  if(!navigator.onLine||syncingOfflineDraft) return;
+  const draft=readOfflineDraft();
+  if(!draft.operations.length) return;
+  syncingOfflineDraft=true;
+  renderOfflineState();
+  try{
+    for(const op of draft.operations) await runDraftOperation(op);
+    localStorage.removeItem(draftKey());
+    draftPromptDismissed=false;
+    alert("离线草稿已同步到云端。");
+    await refreshAll();
+    subscribeRealtime();
+  }catch(error){
+    console.error(error);
+    alert("草稿同步未完成："+(error?.message||String(error))+"。草稿仍保留在本机，可稍后重试。");
+  }finally{
+    syncingOfflineDraft=false;
+    renderOfflineState();
+  }
+}
+async function discardOfflineDraft(){
+  const draft=readOfflineDraft();
+  if(!draft.operations.length) return;
+  if(!confirm("确认放弃这 "+draft.operations.length+" 项离线草稿吗？放弃后将恢复为最近一次云端/缓存内容。")) return;
+  localStorage.removeItem(draftKey());
+  draftPromptDismissed=false;
+  if(navigator.onLine) await refreshAll();
+  else { loadCloudCache(); renderAll(); renderOfflineState(); }
+  if(navigator.onLine) subscribeRealtime();
+}
 
 function showSetup(){
   const b=$("#setupBanner");
@@ -66,12 +336,23 @@ async function enterApp(){
   $("#logoutBtn").classList.remove("hidden");
   $("#accountEmail").textContent=user.email||"";
   await refreshAll();
-  subscribeRealtime();
+  if(navigator.onLine&&!hasOfflineDraft()) subscribeRealtime();
   showLegacyOffer();
+  renderOfflineState();
 }
 async function refreshAll(){
+  if(!navigator.onLine){
+    loadCloudCache();
+    applyOfflineDraftOverlay();
+    renderAll();
+    renderOfflineState();
+    return;
+  }
   await Promise.all([loadPapers(),loadServices(),loadFiles(),loadAiNote(),loadNotifications()]);
+  cacheCloudState();
+  applyOfflineDraftOverlay();
   renderAll();
+  renderOfflineState();
 }
 async function loadPapers(){
   const {data,error}=await sb.from("papers").select("*").order("created_at",{ascending:false});
@@ -337,6 +618,7 @@ function openPaper(status="submitted",id=null){
 }
 async function savePaper(){
   const id=$("#paperId").value;
+  const existing=id?papers.find(x=>x.id===id):null;
   const row={
     title:$("#paperTitle").value.trim(),
     journal:$("#paperJournal").value.trim(),
@@ -348,8 +630,27 @@ async function savePaper(){
   };
   if(monitorReady) row.monitor_enabled=row.status==="review"&&$("#paperMonitor").checked;
   if(!row.title) return alert("请填写标题。");
+
+  const draftId=id||crypto.randomUUID();
+  const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
+  const action=id?"update":"create";
+  if(!navigator.onLine){
+    queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow});
+    $("#paperModal").classList.add("hidden");
+    return;
+  }
+
   const q=id?sb.from("papers").update(row).eq("id",id):sb.from("papers").insert(row);
-  const {error}=await q; if(error) return toastError(error); $("#paperModal").classList.add("hidden");
+  const {error}=await q;
+  if(error){
+    if(isNetworkError(error)){
+      queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow});
+      $("#paperModal").classList.add("hidden");
+      return;
+    }
+    return toastError(error);
+  }
+  $("#paperModal").classList.add("hidden");
 }
 
 function manuscriptExt(name){
@@ -544,6 +845,7 @@ function openService(id=null){
 }
 async function saveService(){
   const id=$("#serviceId").value;
+  const existing=id?services.find(x=>x.id===id):null;
   const row={
     title:$("#serviceTitle").value.trim(),
     journal:$("#serviceJournal").value.trim(),
@@ -555,14 +857,41 @@ async function saveService(){
   };
   if(!row.title) return alert("请填写标题，或先添加稿件尝试自动识别。");
 
+  const draftId=id||crypto.randomUUID();
+  const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
+  const action=id?"update":"create";
+
+  if(!navigator.onLine){
+    queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow});
+    $("#serviceModal").classList.add("hidden");
+    if(pendingServiceFiles.length){
+      alert("外审服务文字信息已保存为离线草稿。文件本身需要联网后再上传；当前选择的文件不会写入云端。");
+    }
+    pendingServiceFiles=[];
+    return;
+  }
+
   let serviceId=id;
-  if(id){
-    const {error}=await sb.from("review_services").update(row).eq("id",id);
-    if(error) return toastError(error);
-  }else{
-    const {data,error}=await sb.from("review_services").insert(row).select("id").single();
-    if(error) return toastError(error);
-    serviceId=data.id;
+  try{
+    if(id){
+      const {error}=await sb.from("review_services").update(row).eq("id",id);
+      if(error) throw error;
+    }else{
+      const {data,error}=await sb.from("review_services").insert(row).select("id").single();
+      if(error) throw error;
+      serviceId=data.id;
+    }
+  }catch(error){
+    if(isNetworkError(error)){
+      queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow});
+      $("#serviceModal").classList.add("hidden");
+      if(pendingServiceFiles.length){
+        alert("网络中断，文字信息已保存为离线草稿。文件需要联网后重新上传。");
+      }
+      pendingServiceFiles=[];
+      return;
+    }
+    return toastError(error);
   }
 
   const queued=[...pendingServiceFiles];
@@ -570,6 +899,7 @@ async function saveService(){
   for(const file of queued) await uploadFile(file,"review_manuscript",serviceId);
   $("#serviceModal").classList.add("hidden");
   await Promise.all([loadServices(),loadFiles()]);
+  cacheCloudState();
   renderAll();
   if(row.status==="reviewed"){
     archiveTab="services";
@@ -579,16 +909,31 @@ async function saveService(){
 }
 async function deletePaper(id){
   const p=papers.find(x=>x.id===id); if(!confirm(`确认删除稿件“${p?.title||""}”吗？删除后无法恢复。`)) return;
-  const {error}=await sb.from("papers").delete().eq("id",id); if(error) toastError(error);
+  if(!navigator.onLine){
+    queueOfflineDraft({entity:"paper",action:"delete",id,payload:{title:p?.title||""},description:"删除稿件："+(p?.title||"未命名稿件")});
+    return;
+  }
+  const {error}=await sb.from("papers").delete().eq("id",id);
+  if(error){
+    if(isNetworkError(error)) return queueOfflineDraft({entity:"paper",action:"delete",id,payload:{title:p?.title||""},description:"删除稿件："+(p?.title||"未命名稿件")});
+    toastError(error);
+  }
 }
 async function deleteService(id){
   const s=services.find(x=>x.id===id); if(!confirm(`确认删除外审服务“${s?.title||""}”吗？其关联的全部稿件文件也会一并删除。`)) return;
+  if(!navigator.onLine){
+    queueOfflineDraft({entity:"service",action:"delete",id,payload:{title:s?.title||""},description:"删除外审服务："+(s?.title||"未命名外审服务")});
+    return;
+  }
   const linked=serviceFiles(id);
   if(linked.length){
     const paths=linked.map(f=>f.storage_path).filter(Boolean);
     if(paths.length){
       const {error:stErr}=await sb.storage.from(BUCKET).remove(paths);
-      if(stErr) return toastError(stErr);
+      if(stErr){
+        if(isNetworkError(stErr)) return queueOfflineDraft({entity:"service",action:"delete",id,payload:{title:s?.title||""},description:"删除外审服务："+(s?.title||"未命名外审服务")});
+        return toastError(stErr);
+      }
     }
     const {error:fileErr}=await sb.from("research_files").delete().eq("review_service_id",id).eq("kind","review_manuscript");
     if(fileErr) return toastError(fileErr);
@@ -603,6 +948,10 @@ function safeExtension(name){
 }
 async function uploadFile(file,kind,reviewServiceId=null,existing=null,folder=null){
   if(!file) return;
+  if(!navigator.onLine){
+    alert("当前处于离线状态。文件上传/替换需要联网；文字内容仍可保存为离线草稿。");
+    return;
+  }
   // Keep database kind compatible with the existing schema, while using
   // a separate Storage folder to distinguish review templates.
   const existingFolder=existing?storageFolder(existing):"";
@@ -652,9 +1001,20 @@ async function downloadFile(f){
   const u=URL.createObjectURL(data), a=document.createElement("a"); a.href=u;a.download=f.file_name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);
 }
 async function saveAi(){
-  $("#aiSaveState").textContent="保存中…";
   const content=$("#aiEditor").innerHTML;
-  const {error}=await sb.from("ai_notes").upsert({owner_id:user.id,content_html:content,updated_at:new Date().toISOString()},{onConflict:"owner_id"});
+  const payload={content_html:content,updated_at:new Date().toISOString()};
+  if(!navigator.onLine){
+    queueOfflineDraft({entity:"ai",action:"update",id:user?.id||"ai",payload});
+    $("#aiSaveState").textContent="离线草稿";
+    return;
+  }
+  $("#aiSaveState").textContent="保存中…";
+  const {error}=await sb.from("ai_notes").upsert({owner_id:user.id,...payload},{onConflict:"owner_id"});
+  if(error&&isNetworkError(error)){
+    queueOfflineDraft({entity:"ai",action:"update",id:user?.id||"ai",payload});
+    $("#aiSaveState").textContent="离线草稿";
+    return;
+  }
   $("#aiSaveState").textContent=error?"保存失败":"已保存"; if(error) toastError(error);
 }
 function showLegacyOffer(){
@@ -785,7 +1145,14 @@ document.addEventListener("pointerdown",e=>{
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){
     const id=e.target.dataset.statusPaper, status=e.target.value, row={status,event_date:todayISO(),deadline:status==="revision"?null:null,updated_at:new Date().toISOString()};
-    const {error}=await sb.from("papers").update(row).eq("id",id); if(error)toastError(error);
+    const p=papers.find(x=>x.id===id);
+    if(!navigator.onLine){
+      queueOfflineDraft({entity:"paper",action:"update",id,payload:{...p,...row},description:"更新稿件状态："+(p?.title||"未命名稿件")+" → "+(PAPER_STATUSES[status]||status)});
+    }else{
+      const {error}=await sb.from("papers").update(row).eq("id",id);
+      if(error&&isNetworkError(error)) queueOfflineDraft({entity:"paper",action:"update",id,payload:{...p,...row},description:"更新稿件状态："+(p?.title||"未命名稿件")+" → "+(PAPER_STATUSES[status]||status)});
+      else if(error) toastError(error);
+    }
   }
   if(e.target.matches("[data-upload-review]")){
     const selected=[...(e.target.files||[])];
@@ -818,5 +1185,27 @@ $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[
 $("#boldBtn").addEventListener("click",()=>document.execCommand("bold"));
 $("#aiEditor").addEventListener("input",()=>{ $("#aiSaveState").textContent="待保存"; clearTimeout(saveTimer); saveTimer=setTimeout(saveAi,800); });
 $("#importLegacyBtn").addEventListener("click",importLegacy);
+$("#syncOfflineDraftBtn").addEventListener("click",syncOfflineDraft);
+$("#keepOfflineDraftBtn").addEventListener("click",()=>{
+  draftPromptDismissed=true;
+  renderOfflineState();
+});
+$("#discardOfflineDraftBtn").addEventListener("click",discardOfflineDraft);
+
+window.addEventListener("offline",()=>{
+  draftPromptDismissed=false;
+  if(realtimeChannel&&sb){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
+  renderOfflineState();
+});
+window.addEventListener("online",async()=>{
+  draftPromptDismissed=false;
+  renderOfflineState();
+  if(hasOfflineDraft()){
+    if(realtimeChannel&&sb){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
+    return;
+  }
+  await refreshAll();
+  subscribeRealtime();
+});
 init();
 })();

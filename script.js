@@ -49,6 +49,11 @@ let aiFormatPainter=null;
 let aiTocUpdating=false;
 let aiTocOpen=false;
 let aiSelectionRange=null;
+let paperFormDraftId=null;
+let serviceFormDraftId=null;
+let paperFormInitial=null;
+let serviceFormInitial=null;
+let offlineFormSaveTimer=null;
 
 
 function draftKey(){
@@ -115,6 +120,107 @@ function loadCloudCache(){
     return false;
   }
 }
+
+const PAPER_FIELD_LABELS={
+  title:"标题",journal:"期刊名",link:"链接",status:"状态",
+  event_date:"日期",deadline:"返修截止日期",monitor_enabled:"外审动态监控"
+};
+const SERVICE_FIELD_LABELS={
+  title:"标题",journal:"期刊名",link:"链接",start_date:"审稿开始时间",
+  end_date:"审稿结束时间",status:"审稿状态"
+};
+function comparableDraftValue(v){
+  if(v===undefined||v===null) return "";
+  if(typeof v==="boolean") return v?"1":"0";
+  return String(v);
+}
+function changedDraftFields(before={},after={},labels={}){
+  return Object.keys(labels).filter(key=>comparableDraftValue(before?.[key])!==comparableDraftValue(after?.[key]));
+}
+function formDraftDescription(entity,action,before,after){
+  const isPaper=entity==="paper";
+  const labels=isPaper?PAPER_FIELD_LABELS:SERVICE_FIELD_LABELS;
+  const changed=changedDraftFields(before,after,labels);
+  const name=(after?.title||before?.title|| (isPaper?"未命名稿件":"未命名外审服务")).trim();
+  const prefix=action==="create"?(isPaper?"新增稿件草稿":"新增外审服务草稿"):(isPaper?"修改稿件":"修改外审服务");
+  const detail=changed.length?"："+changed.map(k=>labels[k]).join("、"):"";
+  return prefix+"《"+name+"》"+detail;
+}
+function paperFormRow(){
+  const status=$("#paperStatus")?.value||"submitted";
+  const row={
+    title:$("#paperTitle")?.value.trim()||"",
+    journal:$("#paperJournal")?.value.trim()||"",
+    link:$("#paperLink")?.value.trim()||"",
+    status,
+    event_date:$("#paperDate")?.value||todayISO(),
+    deadline:status==="revision"?($("#paperDeadline")?.value||null):null,
+    updated_at:new Date().toISOString()
+  };
+  if(monitorReady) row.monitor_enabled=status==="review"&&!!$("#paperMonitor")?.checked;
+  return row;
+}
+function serviceFormRow(){
+  return {
+    title:$("#serviceTitle")?.value.trim()||"",
+    journal:$("#serviceJournal")?.value.trim()||"",
+    link:$("#serviceLink")?.value.trim()||"",
+    start_date:$("#serviceStart")?.value||todayISO(),
+    end_date:$("#serviceEnd")?.value||null,
+    status:$("#serviceStatus")?.value||"pending",
+    updated_at:new Date().toISOString()
+  };
+}
+function hasMeaningfulFormChanges(before,after,labels){
+  return changedDraftFields(before||{},after||{},labels).length>0;
+}
+function capturePaperFormDraft(){
+  const modal=$("#paperModal");
+  if(!modal||modal.classList.contains("hidden")) return false;
+  const originalId=$("#paperId")?.value||"";
+  const existing=originalId?papers.find(x=>x.id===originalId):null;
+  const row=paperFormRow();
+  if(!hasMeaningfulFormChanges(paperFormInitial||{},row,PAPER_FIELD_LABELS)) return false;
+
+  const draftId=originalId||paperFormDraftId||crypto.randomUUID();
+  paperFormDraftId=draftId;
+  const action=originalId?"update":"create";
+  const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
+  queueOfflineDraft({
+    entity:"paper",action,id:draftId,payload:localRow,
+    description:formDraftDescription("paper",action,paperFormInitial||{},row)
+  });
+  return true;
+}
+function captureServiceFormDraft(){
+  const modal=$("#serviceModal");
+  if(!modal||modal.classList.contains("hidden")) return false;
+  const originalId=$("#serviceId")?.value||"";
+  const existing=originalId?services.find(x=>x.id===originalId):null;
+  const row=serviceFormRow();
+  if(!hasMeaningfulFormChanges(serviceFormInitial||{},row,SERVICE_FIELD_LABELS)) return false;
+
+  const draftId=originalId||serviceFormDraftId||crypto.randomUUID();
+  serviceFormDraftId=draftId;
+  const action=originalId?"update":"create";
+  const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
+  queueOfflineDraft({
+    entity:"service",action,id:draftId,payload:localRow,
+    description:formDraftDescription("service",action,serviceFormInitial||{},row)
+  });
+  return true;
+}
+function captureOpenFormsAsOfflineDraft(){
+  if(navigator.onLine) return;
+  capturePaperFormDraft();
+  captureServiceFormDraft();
+}
+function scheduleOfflineFormDraft(){
+  if(navigator.onLine) return;
+  clearTimeout(offlineFormSaveTimer);
+  offlineFormSaveTimer=setTimeout(captureOpenFormsAsOfflineDraft,450);
+}
+
 function draftDescription(entity,action,payload,label=""){
   if(entity==="paper"){
     const name=payload?.title||label||"未命名稿件";
@@ -128,7 +234,7 @@ function draftDescription(entity,action,payload,label=""){
     if(action==="delete") return "删除外审服务："+name;
     return "修改外审服务："+name;
   }
-  if(entity==="ai") return "更新“投稿模板 → AI辅助”内容";
+  if(entity==="ai") return "更新“投稿模板 → AI辅助”：正文内容或格式";
   return label||"网站内容修改";
 }
 function coalesceDraftOperation(draft,op){
@@ -763,10 +869,13 @@ function syncPaperModal(){
 }
 function openPaper(status="submitted",id=null){
   const p=id?papers.find(x=>x.id===id):null;
+  paperFormDraftId=id||crypto.randomUUID();
   $("#paperId").value=p?.id||""; $("#paperTitle").value=p?.title||""; $("#paperJournal").value=p?.journal||""; $("#paperLink").value=p?.link||"";
   $("#paperStatus").value=p?.status||status; $("#paperDate").value=p?.event_date||todayISO(); $("#paperDeadline").value=p?.deadline||"";
   $("#paperMonitor").checked=!!p?.monitor_enabled;
-  syncPaperModal(); $("#paperModal").classList.remove("hidden");
+  syncPaperModal();
+  paperFormInitial=paperFormRow();
+  $("#paperModal").classList.remove("hidden");
 }
 async function savePaper(){
   const id=$("#paperId").value;
@@ -783,11 +892,12 @@ async function savePaper(){
   if(monitorReady) row.monitor_enabled=row.status==="review"&&$("#paperMonitor").checked;
   if(!row.title) return alert("请填写标题。");
 
-  const draftId=id||crypto.randomUUID();
+  const draftId=id||paperFormDraftId||crypto.randomUUID();
+  paperFormDraftId=draftId;
   const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
   const action=id?"update":"create";
   if(!navigator.onLine){
-    queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow});
+    queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow,description:formDraftDescription("paper",action,paperFormInitial||{},row)});
     $("#paperModal").classList.add("hidden");
     return;
   }
@@ -796,7 +906,7 @@ async function savePaper(){
   const {error}=await q;
   if(error){
     if(isNetworkError(error)){
-      queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow});
+      queueOfflineDraft({entity:"paper",action,id:draftId,payload:localRow,description:formDraftDescription("paper",action,paperFormInitial||{},row)});
       $("#paperModal").classList.add("hidden");
       return;
     }
@@ -986,6 +1096,7 @@ async function recognizeServiceManuscript(file){
 
 function openService(id=null){
   const s=id?services.find(x=>x.id===id):null;
+  serviceFormDraftId=id||crypto.randomUUID();
   pendingServiceFiles=[];
   $("#serviceManuscriptFiles").value="";
   $("#serviceManuscriptStatus").textContent="";
@@ -993,6 +1104,7 @@ function openService(id=null){
   $("#serviceStart").value=s?.start_date||todayISO(); $("#serviceEnd").value=s?.end_date||"";
   $("#serviceStatus").value=s?.status||"pending";
   renderServiceModalFiles(s?.id||null);
+  serviceFormInitial=serviceFormRow();
   $("#serviceModal").classList.remove("hidden");
 }
 async function saveService(){
@@ -1009,12 +1121,13 @@ async function saveService(){
   };
   if(!row.title) return alert("请填写标题，或先添加稿件尝试自动识别。");
 
-  const draftId=id||crypto.randomUUID();
+  const draftId=id||serviceFormDraftId||crypto.randomUUID();
+  serviceFormDraftId=draftId;
   const localRow={...existing,...row,id:draftId,created_at:existing?.created_at||new Date().toISOString()};
   const action=id?"update":"create";
 
   if(!navigator.onLine){
-    queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow});
+    queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow,description:formDraftDescription("service",action,serviceFormInitial||{},row)});
     $("#serviceModal").classList.add("hidden");
     if(pendingServiceFiles.length){
       alert("外审服务文字信息已保存为离线草稿。文件本身需要联网后再上传；当前选择的文件不会写入云端。");
@@ -1035,7 +1148,7 @@ async function saveService(){
     }
   }catch(error){
     if(isNetworkError(error)){
-      queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow});
+      queueOfflineDraft({entity:"service",action,id:draftId,payload:localRow,description:formDraftDescription("service",action,serviceFormInitial||{},row)});
       $("#serviceModal").classList.add("hidden");
       if(pendingServiceFiles.length){
         alert("网络中断，文字信息已保存为离线草稿。文件需要联网后重新上传。");
@@ -1775,7 +1888,18 @@ $("#floatingHomeBtn")?.addEventListener("click",()=>{
   window.scrollTo({top:0,behavior:"smooth"});
 });
 $("#addServiceBtn").addEventListener("click",()=>openService());
-$("#paperStatus").addEventListener("change",syncPaperModal);
+$("#paperStatus").addEventListener("change",()=>{
+  syncPaperModal();
+  scheduleOfflineFormDraft();
+});
+["#paperTitle","#paperJournal","#paperLink","#paperDate","#paperDeadline","#paperMonitor",
+ "#serviceTitle","#serviceJournal","#serviceLink","#serviceStart","#serviceEnd","#serviceStatus"]
+  .forEach(sel=>{
+    const el=$(sel);
+    if(!el) return;
+    el.addEventListener("input",scheduleOfflineFormDraft);
+    el.addEventListener("change",scheduleOfflineFormDraft);
+  });
 $("#savePaperBtn").addEventListener("click",savePaper);
 $("#saveServiceBtn").addEventListener("click",saveService);
 $("#loginBtn").addEventListener("click",()=>login(false));
@@ -1903,6 +2027,8 @@ $("#discardOfflineDraftBtn").addEventListener("click",discardOfflineDraft);
 
 window.addEventListener("offline",()=>{
   draftPromptDismissed=false;
+  clearTimeout(offlineFormSaveTimer);
+  captureOpenFormsAsOfflineDraft();
   if(realtimeChannel&&sb){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
   renderOfflineState();
 });

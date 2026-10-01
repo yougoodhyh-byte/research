@@ -45,6 +45,7 @@ const CLOUD_CACHE_PREFIX="research_cloud_cache_v1:";
 let draftPromptDismissed=false;
 let syncingOfflineDraft=false;
 let navCloseTimer=null;
+let aiFormatPainter=null;
 
 
 function draftKey(){
@@ -430,7 +431,12 @@ function initNav(){
     }
   },{passive:true});
 
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSideNav(); });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){
+      closeSideNav();
+      disarmFormatPainter();
+    }
+  });
 }
 async function init(){
   initNav();
@@ -1131,6 +1137,87 @@ async function downloadFile(f){
   const {data,error}=await sb.storage.from(BUCKET).download(f.storage_path); if(error) return toastError(error);
   const u=URL.createObjectURL(data), a=document.createElement("a"); a.href=u;a.download=f.file_name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);
 }
+
+function markAiChanged(){
+  $("#aiSaveState").textContent=navigator.onLine?"待保存":"离线草稿";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveAi,800);
+}
+function focusAiEditor(){
+  $("#aiEditor")?.focus({preventScroll:true});
+}
+function aiCommand(command,value=null){
+  focusAiEditor();
+  document.execCommand(command,false,value);
+  markAiChanged();
+}
+function selectionElement(){
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount) return null;
+  let node=sel.anchorNode;
+  if(node?.nodeType===Node.TEXT_NODE) node=node.parentElement;
+  return node instanceof Element?node:null;
+}
+function fontSizeToExecValue(px){
+  const n=parseFloat(px)||16;
+  if(n<=10) return "1";
+  if(n<=13) return "2";
+  if(n<=16) return "3";
+  if(n<=19) return "4";
+  if(n<=24) return "5";
+  if(n<=32) return "6";
+  return "7";
+}
+function captureAiFormat(){
+  const el=selectionElement();
+  const style=el?getComputedStyle(el):null;
+  return {
+    bold:document.queryCommandState("bold"),
+    underline:document.queryCommandState("underline"),
+    color:document.queryCommandValue("foreColor")||style?.color||"",
+    fontSize:style?.fontSize||"16px"
+  };
+}
+function applyAiFormat(format){
+  if(!format) return;
+  focusAiEditor();
+
+  const currentBold=document.queryCommandState("bold");
+  if(currentBold!==!!format.bold) document.execCommand("bold",false,null);
+
+  const currentUnderline=document.queryCommandState("underline");
+  if(currentUnderline!==!!format.underline) document.execCommand("underline",false,null);
+
+  if(format.color) document.execCommand("foreColor",false,format.color);
+  if(format.fontSize) document.execCommand("fontSize",false,fontSizeToExecValue(format.fontSize));
+
+  markAiChanged();
+}
+function armFormatPainter(){
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount||sel.isCollapsed){
+    alert("请先选中一段作为格式来源的文字，再点击格式刷。");
+    return;
+  }
+  aiFormatPainter=captureAiFormat();
+  $("#formatPainterBtn")?.classList.add("active");
+  $("#formatPainterBtn")?.setAttribute("aria-pressed","true");
+}
+function disarmFormatPainter(){
+  aiFormatPainter=null;
+  $("#formatPainterBtn")?.classList.remove("active");
+  $("#formatPainterBtn")?.setAttribute("aria-pressed","false");
+}
+function tryApplyFormatPainter(){
+  if(!aiFormatPainter) return;
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount||sel.isCollapsed) return;
+  const anchor=sel.anchorNode?.nodeType===Node.TEXT_NODE?sel.anchorNode.parentElement:sel.anchorNode;
+  if(!(anchor instanceof Element)||!anchor.closest("#aiEditor")) return;
+  applyAiFormat(aiFormatPainter);
+  disarmFormatPainter();
+}
+
 async function saveAi(){
   const content=$("#aiEditor").innerHTML;
   const payload={content_html:content,updated_at:new Date().toISOString()};
@@ -1313,8 +1400,18 @@ $("#reviewTemplateUpload").addEventListener("change",async e=>{
   e.target.value="";
 });
 $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[0];if(f&&replaceContext)await uploadFile(f,replaceContext.kind,replaceContext.review_service_id,replaceContext);replaceContext=null;});
-$("#boldBtn").addEventListener("click",()=>document.execCommand("bold"));
-$("#aiEditor").addEventListener("input",()=>{ $("#aiSaveState").textContent="待保存"; clearTimeout(saveTimer); saveTimer=setTimeout(saveAi,800); });
+$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>e.preventDefault()));
+$("#boldBtn").addEventListener("click",()=>aiCommand("bold"));
+$("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
+$("#redBtn").addEventListener("click",()=>aiCommand("foreColor","#d62839"));
+$("#fontGrowBtn").addEventListener("click",()=>aiCommand("increaseFontSize"));
+$("#fontShrinkBtn").addEventListener("click",()=>aiCommand("decreaseFontSize"));
+$("#indentBtn").addEventListener("click",()=>aiCommand("indent"));
+$("#outdentBtn").addEventListener("click",()=>aiCommand("outdent"));
+$("#formatPainterBtn").addEventListener("click",armFormatPainter);
+$("#aiEditor").addEventListener("mouseup",()=>setTimeout(tryApplyFormatPainter,0));
+$("#aiEditor").addEventListener("touchend",()=>setTimeout(tryApplyFormatPainter,50));
+$("#aiEditor").addEventListener("input",markAiChanged);
 $("#importLegacyBtn").addEventListener("click",importLegacy);
 $("#syncOfflineDraftBtn").addEventListener("click",syncOfflineDraft);
 $("#keepOfflineDraftBtn").addEventListener("click",()=>{

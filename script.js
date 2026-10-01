@@ -106,6 +106,7 @@ function loadCloudCache(){
     if(document.activeElement!==$("#aiEditor")){
       $("#aiEditor").innerHTML=aiNote;
       ensureAiToc();
+      ensureAiEditableTail();
     }
     return true;
   }catch(error){
@@ -1149,6 +1150,48 @@ async function downloadFile(f){
 
 
 function aiEditorEl(){ return $("#aiEditor"); }
+function ensureAiEditableTail(){
+  const editor=aiEditorEl();
+  if(!editor) return null;
+
+  let tail=editor.querySelector(":scope > .ai-editor-tail");
+  if(!tail){
+    tail=document.createElement("div");
+    tail.className="ai-editor-tail";
+    tail.innerHTML="<br>";
+    editor.appendChild(tail);
+  }else if(!tail.innerHTML.trim()){
+    tail.innerHTML="<br>";
+  }
+  return tail;
+}
+function placeAiCaretAtEnd(){
+  const editor=aiEditorEl();
+  if(!editor) return;
+  const tail=ensureAiEditableTail();
+  editor.focus({preventScroll:true});
+
+  const range=document.createRange();
+  range.selectNodeContents(tail);
+  range.collapse(false);
+
+  const sel=window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+function aiHasMeaningfulBodyContent(){
+  const editor=aiEditorEl();
+  if(!editor) return false;
+  return [...editor.childNodes].some(node=>{
+    if(node.nodeType===Node.ELEMENT_NODE){
+      const el=node;
+      if(el.classList.contains("ai-toc")||el.classList.contains("ai-editor-tail")) return false;
+      if(el.matches(".ai-image-block")) return true;
+      return !!el.textContent?.trim();
+    }
+    return !!node.textContent?.trim();
+  });
+}
 function ensureAiToc(){
   const editor=aiEditorEl();
   if(!editor||aiTocUpdating) return;
@@ -1175,6 +1218,7 @@ function ensureAiToc(){
       : '<span class="ai-toc-empty">暂无一级标题</span>';
 
     toc.innerHTML='<div class="ai-toc-title">目录</div><div class="ai-toc-items">'+items+'</div>';
+    ensureAiEditableTail();
   } finally {
     aiTocUpdating=false;
   }
@@ -1726,8 +1770,23 @@ $("#aiEditor").addEventListener("touchend",()=>{
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },80);
 });
+$("#aiEditor").addEventListener("pointerup",e=>{
+  const editor=$("#aiEditor");
+  if(!editor) return;
+  if(e.target===editor){
+    setTimeout(placeAiCaretAtEnd,0);
+  }
+});
+$("#aiEditor").addEventListener("click",e=>{
+  const editor=$("#aiEditor");
+  if(!editor) return;
+  if(e.target===editor){
+    placeAiCaretAtEnd();
+  }
+});
 $("#aiEditor").addEventListener("input",()=>{
   ensureAiToc();
+  ensureAiEditableTail();
   markAiChanged();
 });
 $("#aiEditor").addEventListener("paste",async e=>{

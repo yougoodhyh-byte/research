@@ -1366,3 +1366,17 @@ body.nav-open{overflow:hidden}
     margin-bottom:16px;
   }
 }
+
+/* Pending offline changes reminder after connection returns */
+.offline-draft-banner.pending-sync{
+  position:sticky;
+  top:88px;
+  z-index:17;
+  box-shadow:0 12px 30px rgba(85,45,52,.12);
+  background:rgba(255,248,248,.97);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+@media(max-width:1000px){
+  .offline-draft-banner.pending-sync{top:78px}
+}

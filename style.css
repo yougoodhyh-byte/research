@@ -400,3 +400,173 @@ td .file-control .file-trigger-name{max-width:190px}
 @media(max-width:600px){
   .header-date{font-size:9.5pt}
 }
+
+/* Left drawer navigation */
+.topbar{
+  min-height:78px;
+  gap:14px;
+  padding:0 2.2%;
+  flex-wrap:nowrap;
+  align-items:center;
+}
+.menu-toggle{
+  width:42px;
+  height:42px;
+  border:1px solid #dfe6f0;
+  border-radius:11px;
+  background:rgba(255,255,255,.78);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  cursor:pointer;
+  flex:0 0 auto;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease;
+}
+.menu-toggle:hover{background:#f4f8ff;border-color:#bcd2ee}
+.menu-toggle:active{transform:scale(.97)}
+.menu-toggle span{
+  display:block;
+  width:18px;
+  height:2px;
+  border-radius:99px;
+  background:#315c94;
+}
+.topbar-spacer{flex:1;min-width:10px}
+.current-section-label{
+  display:inline-flex;
+  align-items:center;
+  height:34px;
+  padding:0 12px;
+  border-radius:9px;
+  background:#eef5ff;
+  color:#176bdc;
+  font-weight:700;
+  white-space:nowrap;
+}
+.account{margin-left:0}
+.nav-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(17,32,57,.22);
+  backdrop-filter:blur(1.5px);
+  -webkit-backdrop-filter:blur(1.5px);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .18s ease,visibility .18s ease;
+  z-index:39;
+}
+.nav-backdrop.show{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+.side-nav{
+  position:fixed;
+  top:0;
+  left:0;
+  bottom:0;
+  width:min(280px,82vw);
+  padding:18px 14px 20px;
+  background:rgba(250,252,255,.92);
+  border-right:1px solid rgba(211,222,237,.88);
+  box-shadow:18px 0 45px rgba(31,49,78,.16);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  transform:translateX(-105%);
+  transition:transform .2s ease;
+  z-index:40;
+  overflow:auto;
+}
+.side-nav.open{transform:translateX(0)}
+.side-nav-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 7px 15px;
+  border-bottom:1px solid rgba(220,228,239,.9);
+}
+.side-nav-head>div{display:flex;flex-direction:column;gap:3px}
+.side-nav-head strong{font-size:12pt;color:#244a7c}
+.side-nav-head small{font-size:9pt;color:#8290a4}
+.side-nav-close{
+  width:34px;
+  height:34px;
+  border:0;
+  border-radius:9px;
+  background:rgba(233,239,248,.9);
+  color:#60708a;
+  font-size:20px;
+  line-height:1;
+  cursor:pointer;
+}
+.side-nav-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  padding-top:14px;
+}
+.side-nav-list button{
+  width:100%;
+  border:1px solid transparent;
+  background:transparent;
+  color:#25344c;
+  padding:12px 14px;
+  border-radius:11px;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+  transition:background .14s ease,color .14s ease,border-color .14s ease,transform .14s ease;
+}
+.side-nav-list button:hover{
+  background:rgba(232,241,253,.82);
+  color:#176bdc;
+  border-color:rgba(188,210,238,.75);
+}
+.side-nav-list button.active{
+  background:rgba(222,236,255,.92);
+  color:#176bdc;
+  border-color:rgba(172,202,239,.95);
+  font-weight:700;
+}
+.side-nav-list button:active{transform:translateX(2px)}
+body.nav-open{overflow:hidden}
+
+/* Prevent the old horizontal nav treatment from affecting the new drawer. */
+.side-nav .nav,
+.side-nav-list{overflow:visible}
+
+@media(max-width:1000px){
+  .topbar{
+    min-height:70px;
+    padding:8px 12px;
+    gap:10px;
+    flex-wrap:nowrap;
+  }
+  .brand-wrap{min-width:0}
+  .brand{font-size:15.5pt}
+  .header-date{font-size:9pt}
+  .current-section-label{display:none}
+  .account{
+    margin-left:auto;
+    min-width:0;
+    gap:6px;
+  }
+  .account #accountEmail{
+    max-width:34vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .account .btn{padding:7px 9px}
+}
+@media(max-width:600px){
+  .menu-toggle{width:38px;height:38px;border-radius:10px}
+  .brand{font-size:14pt}
+  .brand-wrap{gap:2px}
+  .header-date{font-size:8.5pt}
+  .side-nav{width:min(265px,86vw)}
+  .account #accountEmail{max-width:28vw;font-size:9pt}
+}

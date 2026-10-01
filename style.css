@@ -1152,3 +1152,15 @@ body.nav-open{overflow:hidden}
     padding:0 12px 12px;
   }
 }
+
+/* AI editor text: 1.5 line spacing */
+.ai-editor{
+  line-height:1.5 !important;
+}
+.ai-editor p,
+.ai-editor div:not(.ai-toc):not(.ai-toc-items):not(.ai-toc-title):not(.ai-image-block),
+.ai-editor li,
+.ai-editor blockquote,
+.ai-editor h1{
+  line-height:1.5 !important;
+}

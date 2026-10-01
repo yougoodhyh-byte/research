@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-storageusage1">
+  <link rel="stylesheet" href="./style.css?v=20261002-ai-formatting1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -146,9 +146,18 @@
           <div class="file-list" id="templateList"></div>
         </div>
         <div class="card">
-          <div class="card-head">
+          <div class="card-head ai-card-head">
             <div><h2>AI辅助</h2><div class="sub">小四字体（12pt），自动同步保存。</div></div>
-            <button id="boldBtn" class="btn"><b>B 加粗</b></button>
+            <div class="ai-toolbar" role="toolbar" aria-label="AI辅助文本格式">
+              <button id="boldBtn" class="ai-tool" type="button" title="加粗"><b>B</b><span>加粗</span></button>
+              <button id="underlineBtn" class="ai-tool" type="button" title="下划线"><u>U</u><span>下划线</span></button>
+              <button id="redBtn" class="ai-tool ai-tool-red" type="button" title="标红"><span class="ai-red-dot">A</span><span>标红</span></button>
+              <button id="fontGrowBtn" class="ai-tool" type="button" title="放大字号"><b>A＋</b><span>放大</span></button>
+              <button id="fontShrinkBtn" class="ai-tool" type="button" title="缩小字号"><b>A－</b><span>缩小</span></button>
+              <button id="indentBtn" class="ai-tool" type="button" title="增加缩进"><b>→</b><span>缩进</span></button>
+              <button id="outdentBtn" class="ai-tool" type="button" title="减少缩进"><b>←</b><span>减少缩进</span></button>
+              <button id="formatPainterBtn" class="ai-tool" type="button" title="格式刷"><b>刷</b><span>格式刷</span></button>
+            </div>
           </div>
           <div class="editor-wrap">
             <div id="aiEditor" class="ai-editor" contenteditable="true"></div>
@@ -271,6 +280,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-storageusage1"></script>
+  <script src="./script.js?v=20261002-ai-formatting1"></script>
 </body>
 </html>

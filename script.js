@@ -303,6 +303,24 @@ async function discardOfflineDraft(){
   if(navigator.onLine) subscribeRealtime();
 }
 
+function formatHeaderDate(date=new Date()){
+  return date.getFullYear()+"年"+(date.getMonth()+1)+"月"+date.getDate()+"日";
+}
+function renderHeaderDate(){
+  const el=$("#headerDate");
+  if(el) el.textContent=formatHeaderDate(new Date());
+}
+function scheduleHeaderDateRefresh(){
+  renderHeaderDate();
+  const now=new Date();
+  const next=new Date(now);
+  next.setHours(24,0,1,0);
+  setTimeout(()=>{
+    renderHeaderDate();
+    setInterval(renderHeaderDate,60*60*1000);
+  },Math.max(1000,next-now));
+}
+
 function showSetup(){
   const b=$("#setupBanner");
   b.classList.remove("hidden");
@@ -322,6 +340,7 @@ function initNav(){
 }
 async function init(){
   initNav();
+  scheduleHeaderDateRefresh();
   if(!isConfigured){ showSetup(); return; }
   sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
   const {data:{session}} = await sb.auth.getSession();
@@ -1207,5 +1226,7 @@ window.addEventListener("online",async()=>{
   await refreshAll();
   subscribeRealtime();
 });
+window.addEventListener("focus",renderHeaderDate);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) renderHeaderDate(); });
 init();
 })();

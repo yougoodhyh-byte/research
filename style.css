@@ -1331,3 +1331,38 @@ body.nav-open{overflow:hidden}
   .floating-home-icon{font-size:13pt}
   .floating-home-text{font-size:7.5pt;line-height:1}
 }
+
+/* Home: single review-template entry card */
+.home-review-template-entry{
+  width:100%;
+  margin:0 0 16px;
+  min-height:112px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+}
+.home-review-template-entry span{
+  font-size:12pt;
+}
+.s5{
+  background:#f2edff;
+}
+
+/* Allow the Home review-template entry to open the panel on all screen sizes */
+.review-template-panel.template-open .review-template-detail{
+  max-height:420px !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  overflow:visible !important;
+  margin-top:8px !important;
+}
+.review-template-panel.template-open .review-template-chevron{
+  transform:rotate(180deg) !important;
+}
+
+@media(max-width:600px){
+  .home-review-template-entry{
+    min-height:112px;
+    margin-bottom:16px;
+  }
+}

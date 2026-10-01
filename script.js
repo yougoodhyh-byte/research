@@ -1187,6 +1187,29 @@ function fontSizeToExecValue(px){
   if(n<=32) return "6";
   return "7";
 }
+function aiBlockElement(){
+  const el=selectionElement();
+  if(!el) return null;
+  return el.closest("p,div,li,blockquote,h1,h2,h3,h4,h5,h6")||$("#aiEditor");
+}
+function currentIndentEm(block){
+  if(!block||block===$("#aiEditor")) return 0;
+  const px=parseFloat(getComputedStyle(block).marginLeft)||0;
+  const font=parseFloat(getComputedStyle(block).fontSize)||16;
+  return px/font;
+}
+function changeAiIndent(deltaEm){
+  focusAiEditor();
+  let block=aiBlockElement();
+  if(block===$("#aiEditor")){
+    document.execCommand("formatBlock",false,"div");
+    block=aiBlockElement();
+  }
+  if(!block||block===$("#aiEditor")) return;
+  const next=Math.max(0,Math.round((currentIndentEm(block)+deltaEm)*10)/10);
+  block.style.marginLeft=next?next+"em":"";
+  markAiChanged();
+}
 function captureAiFormat(){
   const el=selectionElement();
   const style=el?getComputedStyle(el):null;

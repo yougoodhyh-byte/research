@@ -7,6 +7,50 @@ const isConfigured = cfg.supabaseUrl && cfg.supabasePublishableKey &&
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const BUCKET = "research-files";
+const AUTH_KEEP_FLAG="research_keep_login_v1";
+const AUTH_STORAGE_KEY="research-auth-v1";
+const authMemoryStorage=new Map();
+function keepLoginEnabled(){
+  try{return localStorage.getItem(AUTH_KEEP_FLAG)==="1";}catch{return false;}
+}
+function setKeepLoginEnabled(enabled){
+  try{
+    if(enabled) localStorage.setItem(AUTH_KEEP_FLAG,"1");
+    else localStorage.removeItem(AUTH_KEEP_FLAG);
+  }catch{}
+}
+const conditionalAuthStorage={
+  getItem(key){
+    try{
+      if(keepLoginEnabled()) return localStorage.getItem(key);
+    }catch{}
+    return authMemoryStorage.get(key)??null;
+  },
+  setItem(key,value){
+    authMemoryStorage.set(key,value);
+    try{
+      if(keepLoginEnabled()) localStorage.setItem(key,value);
+      else localStorage.removeItem(key);
+    }catch{}
+  },
+  removeItem(key){
+    authMemoryStorage.delete(key);
+    try{localStorage.removeItem(key);}catch{}
+  }
+};
+function clearPersistentAuth(){
+  setKeepLoginEnabled(false);
+  authMemoryStorage.clear();
+  try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch{}
+}
+function clearLegacyPersistentAuth(){
+  try{
+    const ref=new URL(cfg.supabaseUrl).hostname.split(".")[0];
+    const legacyKey="sb-"+ref+"-auth-token";
+    if(legacyKey!==AUTH_STORAGE_KEY) localStorage.removeItem(legacyKey);
+  }catch{}
+}
+
 const PAPER_STATUSES = {
   submitted:"已投稿", review:"外审中", revision:"返修中",
   accepted:"已录用", published:"已发表", rejected:"拒稿", withdrawn:"撤稿"
@@ -590,18 +634,42 @@ async function init(){
   initNav();
   scheduleHeaderDateRefresh();
   if(!isConfigured){ showSetup(); return; }
-  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey);
+  // One-time security cleanup: older versions always persisted Supabase login.
+  // Unless the user has explicitly chosen "保持登录" in the new UI, do not reuse it.
+  if(!keepLoginEnabled()) clearLegacyPersistentAuth();
+
+  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabasePublishableKey,{
+    auth:{
+      storage:conditionalAuthStorage,
+      storageKey:AUTH_STORAGE_KEY,
+      persistSession:true,
+      autoRefreshToken:true,
+      detectSessionInUrl:true
+    }
+  });
   const {data:{session}} = await sb.auth.getSession();
   if(session){ user=session.user; await enterApp(); } else { $("#authModal").classList.remove("hidden"); }
   sb.auth.onAuthStateChange(async (_event, session)=>{
     if(session?.user && (!user || user.id!==session.user.id)){ user=session.user; await enterApp(); }
-    if(!session){ user=null; $("#authModal").classList.remove("hidden"); }
+    if(!session){
+      user=null;
+      $("#sessionModeBadge")?.classList.add("hidden");
+      $("#authModal").classList.remove("hidden");
+    }
   });
 }
 async function enterApp(){
   $("#authModal").classList.add("hidden");
   $("#logoutBtn").classList.remove("hidden");
   $("#accountEmail").textContent=user.email||"";
+  const mode=$("#sessionModeBadge");
+  if(mode){
+    const kept=keepLoginEnabled();
+    mode.textContent=kept?"保持登录":"本次会话";
+    mode.title=kept?"此设备会保持登录状态":"刷新或重新打开页面后需要重新登录";
+    mode.classList.remove("hidden","temporary","persistent");
+    mode.classList.add(kept?"persistent":"temporary");
+  }
   await refreshAll();
   if(navigator.onLine&&!hasOfflineDraft()) subscribeRealtime();
   showLegacyOffer();
@@ -886,11 +954,23 @@ function renderArchive(){
 }
 async function login(signup=false){
   const email=$("#authEmail").value.trim(), password=$("#authPassword").value;
+  const keep=!!$("#keepLogin")?.checked;
   $("#authMsg").textContent="";
   if(!email||!password) return $("#authMsg").textContent="请输入邮箱和密码。";
+
+  // Set this before Supabase writes the new session.
+  setKeepLoginEnabled(keep);
+  if(!keep){
+    try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch{}
+  }
+
   const res=signup?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
-  if(res.error) $("#authMsg").textContent=res.error.message;
-  else if(signup&&!res.data.session) $("#authMsg").textContent="注册成功，请检查邮箱完成验证后再登录。";
+  if(res.error){
+    if(!keep) setKeepLoginEnabled(false);
+    $("#authMsg").textContent=res.error.message;
+  }else if(signup&&!res.data.session){
+    $("#authMsg").textContent="注册成功，请检查邮箱完成验证后再登录。";
+  }
 }
 function syncPaperModal(){
   const s=$("#paperStatus").value;
@@ -1966,7 +2046,12 @@ $("#savePaperBtn").addEventListener("click",savePaper);
 $("#saveServiceBtn").addEventListener("click",saveService);
 $("#loginBtn").addEventListener("click",()=>login(false));
 $("#signupBtn").addEventListener("click",()=>login(true));
-$("#logoutBtn").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
+$("#logoutBtn").addEventListener("click",async()=>{
+  try{await sb.auth.signOut();}finally{
+    clearPersistentAuth();
+    location.reload();
+  }
+});
 $("#serviceManuscriptFiles").addEventListener("change",async e=>{
   const selected=[...(e.target.files||[])];
   if(!selected.length) return;

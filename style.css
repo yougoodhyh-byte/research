@@ -1030,3 +1030,33 @@ body.nav-open{overflow:hidden}
     font-size:9.5pt;
   }
 }
+
+/* Reliable mobile input area below AI TOC */
+.ai-editor{
+  cursor:text;
+}
+.ai-editor-tail{
+  min-height:1.8em;
+  outline:none;
+}
+.ai-editor-tail:only-child{
+  min-height:220px;
+}
+.ai-toc + .ai-editor-tail{
+  min-height:220px;
+}
+.ai-editor-tail:not(:empty){
+  min-height:1.8em;
+}
+.ai-editor-tail:has(br:only-child){
+  min-height:220px;
+}
+@media(max-width:600px){
+  .ai-editor{
+    min-height:420px;
+  }
+  .ai-toc + .ai-editor-tail,
+  .ai-editor-tail:has(br:only-child){
+    min-height:260px;
+  }
+}

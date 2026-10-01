@@ -1164,3 +1164,25 @@ body.nav-open{overflow:hidden}
 .ai-editor h1{
   line-height:1.5 !important;
 }
+
+/* Automatic sequential numbering for AI H1 headings */
+.ai-editor h1[data-ai-heading-number]::before{
+  content:attr(data-ai-heading-number) ". ";
+  color:inherit;
+  font-weight:700;
+}
+.ai-toc-link{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+}
+.ai-toc-number{
+  flex:0 0 auto;
+  min-width:1.6em;
+  font-weight:700;
+  color:#315f96;
+}
+.ai-toc-text{
+  min-width:0;
+  text-align:left;
+}

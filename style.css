@@ -209,3 +209,87 @@ td .file-control .file-trigger-name{max-width:190px}
   .service-manuscript-head{align-items:flex-start;flex-direction:column}
   .service-manuscript-pick{width:100%;text-align:center}
 }
+
+/* Review template panel: content hidden by default */
+.review-template-toolbar{margin-bottom:0}
+.review-template-summary{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  border:0;
+  background:transparent;
+  padding:3px 0;
+  color:var(--text);
+  cursor:default;
+  text-align:left;
+  font:inherit;
+}
+.review-template-title-line{display:flex;align-items:center;gap:7px;min-width:0}
+.review-template-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:21px;
+  height:21px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#eaf3ff;
+  color:#176bdc;
+  font-size:8.5pt;
+  font-weight:700;
+}
+.review-template-chevron{
+  color:#8390a5;
+  font-size:12pt;
+  transition:transform .16s ease;
+}
+.review-template-detail{
+  max-height:0;
+  opacity:0;
+  visibility:hidden;
+  overflow:hidden;
+  margin-top:0;
+  transition:max-height .18s ease,opacity .14s ease,margin-top .18s ease,visibility .14s ease;
+}
+.review-template-panel:hover .review-template-detail,
+.review-template-panel:focus-within .review-template-detail{
+  max-height:220px;
+  opacity:1;
+  visibility:visible;
+  overflow:visible;
+  margin-top:8px;
+}
+.review-template-panel:hover .review-template-chevron,
+.review-template-panel:focus-within .review-template-chevron{
+  transform:rotate(180deg);
+}
+.review-template-sub{margin:0 0 7px}
+.review-template-list{min-height:0}
+.review-template-panel:not(:hover):not(:focus-within){padding-bottom:10px}
+
+@media(max-width:820px){
+  .review-template-summary{cursor:pointer;flex:1}
+  .review-template-panel:hover .review-template-detail,
+  .review-template-panel:focus-within .review-template-detail{
+    max-height:0;
+    opacity:0;
+    visibility:hidden;
+    overflow:hidden;
+    margin-top:0;
+  }
+  .review-template-panel:hover .review-template-chevron,
+  .review-template-panel:focus-within .review-template-chevron{
+    transform:none;
+  }
+  .review-template-panel.template-open .review-template-detail{
+    max-height:420px;
+    opacity:1;
+    visibility:visible;
+    overflow:visible;
+    margin-top:8px;
+  }
+  .review-template-panel.template-open .review-template-chevron{
+    transform:rotate(180deg);
+  }
+}

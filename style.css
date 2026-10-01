@@ -1380,3 +1380,62 @@ body.nav-open{overflow:hidden}
 @media(max-width:1000px){
   .offline-draft-banner.pending-sync{top:78px}
 }
+
+/* Login persistence / temporary-device security */
+.keep-login-row{
+  margin-top:14px !important;
+  padding:11px 12px;
+  border:1px solid #e1e8f2;
+  border-radius:10px;
+  background:#f8fafc;
+  gap:6px !important;
+}
+.keep-login-choice{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+.keep-login-choice input{
+  width:17px;
+  height:17px;
+  margin:0;
+  padding:0;
+  accent-color:var(--blue);
+}
+.keep-login-row small{
+  color:#7a879b;
+  font-size:8.8pt;
+  line-height:1.5;
+}
+.session-mode-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:8.5pt;
+  font-weight:700;
+  white-space:nowrap;
+}
+.session-mode-badge.temporary{
+  background:#fff4df;
+  color:#9a6818;
+  border:1px solid #efd8a6;
+}
+.session-mode-badge.persistent{
+  background:#eaf7f2;
+  color:#217459;
+  border:1px solid #cce8dc;
+}
+@media(max-width:760px){
+  .session-mode-badge{
+    min-height:24px;
+    padding:2px 7px;
+    font-size:8pt;
+  }
+}
+@media(max-width:560px){
+  .session-mode-badge{display:none}
+}

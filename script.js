@@ -137,14 +137,38 @@ function comparableDraftValue(v){
 function changedDraftFields(before={},after={},labels={}){
   return Object.keys(labels).filter(key=>comparableDraftValue(before?.[key])!==comparableDraftValue(after?.[key]));
 }
+function draftFieldDisplay(entity,key,value){
+  if(value===undefined||value===null||value==="") return "空";
+  if(key==="status"){
+    if(entity==="paper") return PAPER_STATUSES[value]||String(value);
+    if(entity==="service") return value==="reviewed"?"已审":"未审";
+  }
+  if(key==="monitor_enabled") return value?"开启":"关闭";
+  let s=String(value);
+  if(key==="link"&&s.length>45) s=s.slice(0,42)+"…";
+  return s;
+}
 function formDraftDescription(entity,action,before,after){
   const isPaper=entity==="paper";
   const labels=isPaper?PAPER_FIELD_LABELS:SERVICE_FIELD_LABELS;
   const changed=changedDraftFields(before,after,labels);
   const name=(after?.title||before?.title|| (isPaper?"未命名稿件":"未命名外审服务")).trim();
   const prefix=action==="create"?(isPaper?"新增稿件草稿":"新增外审服务草稿"):(isPaper?"修改稿件":"修改外审服务");
-  const detail=changed.length?"："+changed.map(k=>labels[k]).join("、"):"";
-  return prefix+"《"+name+"》"+detail;
+
+  const details=changed.map(key=>{
+    const label=labels[key];
+    const oldValue=draftFieldDisplay(entity,key,before?.[key]);
+    const newValue=draftFieldDisplay(entity,key,after?.[key]);
+    return label+"："+oldValue+" → "+newValue;
+  });
+
+  return prefix+"《"+name+"》"+(details.length?"；"+details.join("；"):"");
+}
+function aiOfflineDraftDescription(content){
+  const temp=document.createElement("div");
+  temp.innerHTML=content||"";
+  const text=(temp.textContent||"").replace(/\s+/g," ").trim();
+  return "AI辅助：正文内容或格式已修改（当前约 "+text.length+" 字）";
 }
 function paperFormRow(){
   const status=$("#paperStatus")?.value||"submitted";
@@ -252,7 +276,7 @@ function coalesceDraftOperation(draft,op){
   const create=same.find(x=>x.action==="create");
   if(create){
     create.payload={...create.payload,...op.payload};
-    create.description=draftDescription(op.entity,"create",create.payload);
+    create.description=op.description||create.description||draftDescription(op.entity,"create",create.payload);
     create.timestamp=op.timestamp;
     return;
   }
@@ -322,7 +346,14 @@ function renderOfflineState(){
   const has=draft.operations.length>0;
   const banner=$("#offlineDraftBanner");
   const canPrompt=has&&!draftPromptDismissed;
-  if(banner) banner.classList.toggle("hidden",!canPrompt);
+  if(banner){
+    banner.classList.toggle("hidden",!canPrompt);
+    banner.classList.toggle("pending-sync",has&&!offline);
+    const title=banner.querySelector(".offline-draft-head b");
+    const sub=banner.querySelector(".offline-draft-sub");
+    if(title) title.textContent=offline?"离线草稿已自动保存":"网络已恢复，存在待同步草稿";
+    if(sub) sub.textContent=offline?"离线期间的修改如下：":"请核对以下更改，再决定是否同步到云端：";
+  }
 
   if(has){
     const meta=$("#offlineDraftMeta");
@@ -1699,22 +1730,53 @@ function tryApplyFormatPainter(){
   disarmFormatPainter();
 }
 
+function captureAiEditorAsOfflineDraft(){
+  if(navigator.onLine) return false;
+  const editor=$("#aiEditor");
+  if(!editor) return false;
+  const content=sanitizeAiHtmlForSave();
+  if(content===aiNote) return false;
+  const payload={content_html:content,updated_at:new Date().toISOString()};
+  queueOfflineDraft({
+    entity:"ai",
+    action:"update",
+    id:user?.id||"ai",
+    payload,
+    description:aiOfflineDraftDescription(content)
+  });
+  $("#aiSaveState").textContent="离线草稿";
+  return true;
+}
+
 async function saveAi(){
   const content=sanitizeAiHtmlForSave();
   const payload={content_html:content,updated_at:new Date().toISOString()};
   if(!navigator.onLine){
-    queueOfflineDraft({entity:"ai",action:"update",id:user?.id||"ai",payload});
+    queueOfflineDraft({
+      entity:"ai",action:"update",id:user?.id||"ai",payload,
+      description:aiOfflineDraftDescription(content)
+    });
     $("#aiSaveState").textContent="离线草稿";
     return;
   }
   $("#aiSaveState").textContent="保存中…";
   const {error}=await sb.from("ai_notes").upsert({owner_id:user.id,...payload},{onConflict:"owner_id"});
   if(error&&isNetworkError(error)){
-    queueOfflineDraft({entity:"ai",action:"update",id:user?.id||"ai",payload});
+    queueOfflineDraft({
+      entity:"ai",action:"update",id:user?.id||"ai",payload,
+      description:aiOfflineDraftDescription(content)
+    });
     $("#aiSaveState").textContent="离线草稿";
     return;
   }
-  $("#aiSaveState").textContent=error?"保存失败":"已保存"; if(error) toastError(error);
+  if(error){
+    $("#aiSaveState").textContent="保存失败";
+    toastError(error);
+    return;
+  }
+  aiNote=content;
+  cacheCloudState();
+  $("#aiSaveState").textContent="已保存";
 }
 function showLegacyOffer(){
   if(localStorage.getItem("rw_cloud_migrated")==="1") return;
@@ -2028,7 +2090,9 @@ $("#discardOfflineDraftBtn").addEventListener("click",discardOfflineDraft);
 window.addEventListener("offline",()=>{
   draftPromptDismissed=false;
   clearTimeout(offlineFormSaveTimer);
+  clearTimeout(saveTimer);
   captureOpenFormsAsOfflineDraft();
+  captureAiEditorAsOfflineDraft();
   if(realtimeChannel&&sb){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
   renderOfflineState();
 });
@@ -2037,6 +2101,13 @@ window.addEventListener("online",async()=>{
   renderOfflineState();
   if(hasOfflineDraft()){
     if(realtimeChannel&&sb){ sb.removeChannel(realtimeChannel); realtimeChannel=null; }
+    const modalOpen=
+      !$("#paperModal")?.classList.contains("hidden") ||
+      !$("#serviceModal")?.classList.contains("hidden") ||
+      !$("#previewModal")?.classList.contains("hidden");
+    if(!modalOpen){
+      setTimeout(()=>$("#offlineDraftBanner")?.scrollIntoView({behavior:"smooth",block:"start"}),120);
+    }
     return;
   }
   await refreshAll();

@@ -1186,3 +1186,10 @@ body.nav-open{overflow:hidden}
   min-width:0;
   text-align:left;
 }
+
+/* AI section spacing: content end to level-2 heading = two line spaces */
+.ai-editor h2{
+  margin-top:3em !important;
+  margin-bottom:.65em;
+  line-height:1.5 !important;
+}

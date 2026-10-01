@@ -1766,14 +1766,9 @@ document.addEventListener("change", async e=>{
     e.target.value="";
   }
 });
-$("#homeReviewTemplateEntry")?.addEventListener("click",()=>{
-  showView("reviewService");
-  const panel=$(".review-template-panel");
-  if(panel){
-    panel.classList.add("template-open");
-    panel.querySelector("[data-review-template-toggle]")?.setAttribute("aria-expanded","true");
-    setTimeout(()=>panel.scrollIntoView({behavior:"smooth",block:"start"}),80);
-  }
+$("#homeSubmissionTemplateEntry")?.addEventListener("click",()=>{
+  showView("templates");
+  setTimeout(()=>window.scrollTo({top:0,behavior:"smooth"}),50);
 });
 $("#floatingHomeBtn")?.addEventListener("click",()=>{
   showView("home");

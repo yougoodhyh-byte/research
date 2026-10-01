@@ -46,6 +46,7 @@ let draftPromptDismissed=false;
 let syncingOfflineDraft=false;
 let navCloseTimer=null;
 let aiFormatPainter=null;
+let aiTocUpdating=false;
 
 
 function draftKey(){
@@ -101,7 +102,10 @@ function loadCloudCache(){
     aiNote=typeof cached.aiNote==="string"?cached.aiNote:"";
     notifications=[];
     monitorReady=false;
-    if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
+    if(document.activeElement!==$("#aiEditor")){
+      $("#aiEditor").innerHTML=aiNote;
+      ensureAiToc();
+    }
     return true;
   }catch(error){
     console.warn("cloud cache read failed",error);
@@ -489,7 +493,11 @@ async function loadAiNote(){
   const {data,error}=await sb.from("ai_notes").select("content_html").maybeSingle();
   if(error) return toastError(error);
   aiNote=data?.content_html||"";
-  if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
+  if(document.activeElement!==$("#aiEditor")){
+    $("#aiEditor").innerHTML=aiNote;
+    ensureAiToc();
+    await resolveAiImages();
+  }
 }
 async function loadNotifications(){
   const {data,error}=await sb.from("review_notifications").select("*").is("dismissed_at",null).order("created_at",{ascending:false});
@@ -1138,6 +1146,139 @@ async function downloadFile(f){
   const u=URL.createObjectURL(data), a=document.createElement("a"); a.href=u;a.download=f.file_name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);
 }
 
+
+function aiEditorEl(){ return $("#aiEditor"); }
+function ensureAiToc(){
+  const editor=aiEditorEl();
+  if(!editor||aiTocUpdating) return;
+  aiTocUpdating=true;
+  try{
+    let toc=editor.querySelector(":scope > .ai-toc");
+    if(!toc){
+      toc=document.createElement("div");
+      toc.className="ai-toc";
+      toc.setAttribute("contenteditable","false");
+      editor.insertBefore(toc,editor.firstChild);
+    }
+
+    const headings=[...editor.querySelectorAll("h1")].filter(h=>!h.closest(".ai-toc"));
+    headings.forEach((heading,index)=>{
+      heading.id="ai-heading-"+(index+1);
+    });
+
+    const items=headings.length
+      ? headings.map((heading,index)=>{
+          const title=cleanDetectedText(heading.textContent)||("一级标题 "+(index+1));
+          return '<button type="button" class="ai-toc-link" data-ai-toc-target="'+esc(heading.id)+'">'+esc(title)+'</button>';
+        }).join("")
+      : '<span class="ai-toc-empty">暂无一级标题</span>';
+
+    toc.innerHTML='<div class="ai-toc-title">目录</div><div class="ai-toc-items">'+items+'</div>';
+  } finally {
+    aiTocUpdating=false;
+  }
+}
+function setAiHeading1(){
+  focusAiEditor();
+  document.execCommand("formatBlock",false,"h1");
+  ensureAiToc();
+  markAiChanged();
+}
+async function uploadAiPastedImage(file){
+  if(!file) return null;
+  if(!navigator.onLine){
+    alert("当前离线。图片需要联网后才能上传；文字仍会保存为离线草稿。");
+    return null;
+  }
+  const ext=safeExtension(file.name||"pasted-image.png")||".png";
+  const path=`${user.id}/ai_image/${crypto.randomUUID()}${ext}`;
+  const {error:upErr}=await sb.storage.from(BUCKET).upload(path,file,{
+    contentType:file.type||"image/png",
+    upsert:false
+  });
+  if(upErr){ toastError(upErr); return null; }
+
+  const meta={
+    kind:"ai_image",
+    review_service_id:null,
+    file_name:file.name||("粘贴图片-"+Date.now()+ext),
+    storage_path:path,
+    mime_type:file.type||"image/png",
+    file_size:file.size||0,
+    updated_at:new Date().toISOString()
+  };
+  const {data,error}=await sb.from("research_files").insert(meta).select("*").single();
+  if(error){
+    await sb.storage.from(BUCKET).remove([path]);
+    toastError(error);
+    return null;
+  }
+  files.unshift(data);
+
+  const url=await signedUrl(data,60*60*24*7);
+  if(!url) return null;
+  return {file:data,url};
+}
+function insertAiImageAtSelection(url,fileId,fileName){
+  const editor=aiEditorEl();
+  if(!editor) return;
+  const sel=window.getSelection();
+  let range=null;
+  if(sel&&sel.rangeCount&&editor.contains(sel.anchorNode)){
+    range=sel.getRangeAt(0);
+  }else{
+    range=document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+  }
+
+  const wrap=document.createElement("div");
+  wrap.className="ai-image-block";
+  const img=document.createElement("img");
+  img.src=url;
+  img.alt=fileName||"粘贴图片";
+  img.dataset.aiImageId=fileId;
+  img.draggable=false;
+  wrap.appendChild(img);
+
+  const spacer=document.createElement("div");
+  spacer.innerHTML="<br>";
+
+  range.deleteContents();
+  range.insertNode(spacer);
+  range.insertNode(wrap);
+  range.setStartAfter(spacer);
+  range.collapse(true);
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+
+  ensureAiToc();
+  markAiChanged();
+  renderStorageUsage();
+}
+async function resolveAiImages(){
+  const editor=aiEditorEl();
+  if(!editor) return;
+  const imgs=[...editor.querySelectorAll("img[data-ai-image-id]")];
+  for(const img of imgs){
+    const id=img.dataset.aiImageId;
+    const file=files.find(f=>f.id===id);
+    if(!file) continue;
+    const url=await signedUrl(file,60*60*24*7);
+    if(url) img.src=url;
+  }
+}
+function sanitizeAiHtmlForSave(){
+  const editor=aiEditorEl();
+  if(!editor) return "";
+  ensureAiToc();
+  const clone=editor.cloneNode(true);
+  clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{
+    img.removeAttribute("src");
+  });
+  return clone.innerHTML;
+}
+
 function markAiChanged(){
   $("#aiSaveState").textContent=navigator.onLine?"待保存":"离线草稿";
   clearTimeout(saveTimer);
@@ -1273,7 +1414,7 @@ function tryApplyFormatPainter(){
 }
 
 async function saveAi(){
-  const content=$("#aiEditor").innerHTML;
+  const content=sanitizeAiHtmlForSave();
   const payload={content_html:content,updated_at:new Date().toISOString()};
   if(!navigator.onLine){
     queueOfflineDraft({entity:"ai",action:"update",id:user?.id||"ai",payload});
@@ -1340,6 +1481,13 @@ function closeMobileFileMenus(except=null){
     x.querySelector("[data-file-menu]")?.setAttribute("aria-expanded","false");
   });
 }
+
+document.addEventListener("click",e=>{
+  const link=e.target.closest("[data-ai-toc-target]");
+  if(!link) return;
+  const target=document.getElementById(link.dataset.aiTocTarget);
+  if(target) target.scrollIntoView({behavior:"smooth",block:"center"});
+});
 
 document.addEventListener("click", async e=>{
   const b=e.target.closest(
@@ -1457,6 +1605,7 @@ $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[
 $$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>e.preventDefault()));
 $("#boldBtn").addEventListener("click",()=>aiCommand("bold"));
 $("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
+$("#heading1Btn").addEventListener("click",setAiHeading1);
 $("#redBtn").addEventListener("click",toggleAiRed);
 $("#fontGrowBtn").addEventListener("click",()=>changeAiFontSize(1));
 $("#fontShrinkBtn").addEventListener("click",()=>changeAiFontSize(-1));
@@ -1465,7 +1614,34 @@ $("#outdentBtn").addEventListener("click",()=>changeAiIndent(-2));
 $("#formatPainterBtn").addEventListener("click",armFormatPainter);
 $("#aiEditor").addEventListener("mouseup",()=>setTimeout(tryApplyFormatPainter,0));
 $("#aiEditor").addEventListener("touchend",()=>setTimeout(tryApplyFormatPainter,50));
-$("#aiEditor").addEventListener("input",markAiChanged);
+$("#aiEditor").addEventListener("input",()=>{
+  ensureAiToc();
+  markAiChanged();
+});
+$("#aiEditor").addEventListener("paste",async e=>{
+  const items=[...(e.clipboardData?.items||[])];
+  const imageItems=items.filter(item=>item.type?.startsWith("image/"));
+  if(!imageItems.length) return;
+
+  e.preventDefault();
+  const sel=window.getSelection();
+  const savedRange=sel&&sel.rangeCount?sel.getRangeAt(0).cloneRange():null;
+
+  for(const item of imageItems){
+    const blob=item.getAsFile();
+    if(!blob) continue;
+    const ext=(blob.type.split("/")[1]||"png").replace(/[^a-z0-9]/gi,"")||"png";
+    const file=new File([blob],"粘贴图片-"+Date.now()+"."+ext,{type:blob.type});
+    const uploaded=await uploadAiPastedImage(file);
+    if(!uploaded) continue;
+
+    if(savedRange&&sel){
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    insertAiImageAtSelection(uploaded.url,uploaded.file.id,uploaded.file.file_name);
+  }
+});
 $("#importLegacyBtn").addEventListener("click",importLegacy);
 $("#syncOfflineDraftBtn").addEventListener("click",syncOfflineDraft);
 $("#keepOfflineDraftBtn").addEventListener("click",()=>{

@@ -543,9 +543,24 @@ function renderStorageUsage(){
   wrap.classList.toggle("storage-warning",percent>=80);
   wrap.classList.toggle("storage-full",percent>=95);
 }
+function renderHomeReviewTemplates(){
+  const grid=$("#homeReviewTemplateGrid");
+  if(!grid) return;
+  const list=files.filter(isReviewTemplate);
+  const colors=["c1","c2","c3","c4","c5","c6"];
+
+  grid.innerHTML=list.map((f,index)=>{
+    const fileName=String(f.file_name||"审稿模板");
+    const displayName=fileName.replace(/\.[^.]+$/,"")||fileName;
+    return `<button type="button" class="home-review-template-card ${colors[index%colors.length]}" data-home-review-template="${f.id}" title="${esc(fileName)}">
+      <span class="home-review-template-name">${esc(displayName)}</span>
+      <span class="home-review-template-open">点击打开</span>
+    </button>`;
+  }).join("")||`<div class="home-review-template-empty">暂无审稿模板</div>`;
+}
 function renderAll(){
   renderStorageUsage();
-  renderCounts(); renderAlerts(); renderPapers(); renderServices(); renderReviewTemplates(); renderTemplates(); renderArchive();
+  renderCounts(); renderAlerts(); renderHomeReviewTemplates(); renderPapers(); renderServices(); renderReviewTemplates(); renderTemplates(); renderArchive();
 }
 function renderAlerts(){
   const wrap=$("#reviewAlerts"), list=$("#alertList");
@@ -1680,7 +1695,7 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-remove-pending-service-file],[data-review-template-toggle],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-remove-pending-service-file],[data-review-template-toggle],[data-jump],[data-home-review-template]"
   );
   if(!b) return;
 
@@ -1726,6 +1741,10 @@ document.addEventListener("click", async e=>{
     archiveTab=b.dataset.archiveTab;
     renderArchiveTabs();
   }
+  if(b.dataset.homeReviewTemplate){
+    const f=files.find(x=>x.id===b.dataset.homeReviewTemplate);
+    if(f) await previewFile(f);
+  }
   if(b.dataset.removePendingServiceFile!==undefined){
     const idx=Number(b.dataset.removePendingServiceFile);
     if(Number.isInteger(idx)&&idx>=0&&idx<pendingServiceFiles.length){
@@ -1765,6 +1784,10 @@ document.addEventListener("change", async e=>{
     for(const file of selected) await uploadFile(file,"review_manuscript",e.target.dataset.uploadReview);
     e.target.value="";
   }
+});
+$("#floatingHomeBtn")?.addEventListener("click",()=>{
+  showView("home");
+  window.scrollTo({top:0,behavior:"smooth"});
 });
 $("#addServiceBtn").addEventListener("click",()=>openService());
 $("#paperStatus").addEventListener("change",syncPaperModal);

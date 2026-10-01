@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261001-templaterows1">
+  <link rel="stylesheet" href="./style.css?v=20261001-offlinedraft1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -27,6 +27,26 @@
   </header>
 
   <main class="main">
+    <div id="connectionStatus" class="connection-status hidden">
+      <b>当前处于离线状态</b>
+      <span>文字修改会先保存为本机草稿；联网后由你决定是否同步到云端。</span>
+    </div>
+    <div id="offlineDraftBanner" class="offline-draft-banner hidden">
+      <div class="offline-draft-head">
+        <div>
+          <b>检测到离线草稿</b>
+          <span id="offlineDraftMeta"></span>
+        </div>
+        <div class="offline-draft-actions">
+          <button id="syncOfflineDraftBtn" class="btn primary">同步到云端</button>
+          <button id="keepOfflineDraftBtn" class="btn">暂不同步</button>
+          <button id="discardOfflineDraftBtn" class="btn danger">放弃草稿</button>
+        </div>
+      </div>
+      <div class="offline-draft-sub">离线期间的修改如下：</div>
+      <ul id="offlineDraftList" class="offline-draft-list"></ul>
+    </div>
+
     <section id="home" class="view active">
       <div class="hero">
         <div>
@@ -232,6 +252,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261001-templatecollapse1"></script>
+  <script src="./script.js?v=20261001-offlinedraft1"></script>
 </body>
 </html>

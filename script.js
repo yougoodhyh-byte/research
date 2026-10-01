@@ -350,14 +350,15 @@ function closeSideNav(){
   $("#navBackdrop")?.classList.remove("show");
   $("#menuToggle")?.setAttribute("aria-expanded","false");
 }
-function desktopHoverNavEnabled(){
-  return window.matchMedia("(hover:hover) and (pointer:fine)").matches;
+function isRealMouseEvent(e){
+  if(e?.pointerType) return e.pointerType==="mouse";
+  if(e?.sourceCapabilities?.firesTouchEvents) return false;
+  return true;
 }
 function cancelNavClose(){
   if(navCloseTimer){ clearTimeout(navCloseTimer); navCloseTimer=null; }
 }
-function scheduleNavClose(delay=260){
-  if(!desktopHoverNavEnabled()) return;
+function scheduleNavClose(delay=220){
   cancelNavClose();
   navCloseTimer=setTimeout(()=>{
     const side=$("#sideNav");
@@ -388,14 +389,38 @@ function initNav(){
   $("#navBackdrop")?.addEventListener("click",closeSideNav);
 
   const toggle=$("#menuToggle"), side=$("#sideNav"), zone=$("#navHoverZone");
-  [toggle,side,zone].filter(Boolean).forEach(el=>{
-    el.addEventListener("mouseenter",()=>{
-      if(!desktopHoverNavEnabled()) return;
+
+  // Mouse over the button or the thin left edge opens the drawer immediately.
+  [toggle,zone].filter(Boolean).forEach(el=>{
+    el.addEventListener("pointerenter",e=>{
+      if(!isRealMouseEvent(e)) return;
       cancelNavClose();
       openSideNav();
     });
-    el.addEventListener("mouseleave",()=>scheduleNavClose());
+    el.addEventListener("pointerleave",e=>{
+      if(!isRealMouseEvent(e)) return;
+      scheduleNavClose();
+    });
   });
+
+  // Keep it open while the mouse is inside the drawer; hide after leaving it.
+  side?.addEventListener("pointerenter",e=>{
+    if(!isRealMouseEvent(e)) return;
+    cancelNavClose();
+  });
+  side?.addEventListener("pointerleave",e=>{
+    if(!isRealMouseEvent(e)) return;
+    scheduleNavClose(180);
+  });
+
+  // Robust fallback: any real mouse movement within 34 px of the left edge opens it.
+  document.addEventListener("pointermove",e=>{
+    if(!isRealMouseEvent(e)) return;
+    if(e.clientX<=34){
+      cancelNavClose();
+      openSideNav();
+    }
+  },{passive:true});
 
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSideNav(); });
 }

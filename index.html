@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-ai-h2-spacing2x">
+  <link rel="stylesheet" href="./style.css?v=20261002-home-review-directory1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -52,6 +52,11 @@
     </nav>
   </aside>
 
+  <button id="floatingHomeBtn" class="floating-home-btn" type="button" aria-label="返回首页" title="返回首页">
+    <span class="floating-home-icon" aria-hidden="true">⌂</span>
+    <span class="floating-home-text">首页</span>
+  </button>
+
   <main class="main">
     <div id="connectionStatus" class="connection-status hidden">
       <b>当前处于离线状态</b>
@@ -90,6 +95,11 @@
       <div id="legacyBanner" class="legacy hidden">
         <div><b>发现这台设备中的旧版科研工作台数据。</b><span>可以一键导入到云端，之后其他设备也能同步看到。</span></div>
         <button id="importLegacyBtn" class="btn primary">导入旧数据</button>
+      </div>
+
+      <div id="homeReviewTemplates" class="home-review-templates">
+        <div class="home-section-title">审稿模板目录</div>
+        <div id="homeReviewTemplateGrid" class="home-review-template-grid"></div>
       </div>
     </section>
 
@@ -292,6 +302,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-ai-h1-numbering1"></script>
+  <script src="./script.js?v=20261002-home-review-directory1"></script>
 </body>
 </html>

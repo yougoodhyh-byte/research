@@ -1190,11 +1190,13 @@ function fontSizeToExecValue(px){
 function captureAiFormat(){
   const el=selectionElement();
   const style=el?getComputedStyle(el):null;
+  const block=aiBlockElement();
   return {
     bold:document.queryCommandState("bold"),
     underline:document.queryCommandState("underline"),
     color:document.queryCommandValue("foreColor")||style?.color||"",
-    fontSize:style?.fontSize||"16px"
+    fontSize:style?.fontSize||"16px",
+    indentEm:currentIndentEm(block)
   };
 }
 function applyAiFormat(format){
@@ -1210,6 +1212,15 @@ function applyAiFormat(format){
   if(format.color) document.execCommand("foreColor",false,format.color);
   if(format.fontSize) document.execCommand("fontSize",false,fontSizeToExecValue(format.fontSize));
 
+  let block=aiBlockElement();
+  if(block===$("#aiEditor")&&Number.isFinite(format.indentEm)&&format.indentEm>0){
+    document.execCommand("formatBlock",false,"div");
+    block=aiBlockElement();
+  }
+  if(block&&block!==$("#aiEditor")&&Number.isFinite(format.indentEm)){
+    block.style.marginLeft=format.indentEm?format.indentEm+"em":"";
+  }
+
   markAiChanged();
 }
 function armFormatPainter(){
@@ -1221,6 +1232,7 @@ function armFormatPainter(){
   aiFormatPainter=captureAiFormat();
   $("#formatPainterBtn")?.classList.add("active");
   $("#formatPainterBtn")?.setAttribute("aria-pressed","true");
+  $("#aiSaveState").textContent="格式刷已取样，请选择目标文字";
 }
 function disarmFormatPainter(){
   aiFormatPainter=null;
@@ -1425,8 +1437,8 @@ $("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
 $("#redBtn").addEventListener("click",toggleAiRed);
 $("#fontGrowBtn").addEventListener("click",()=>changeAiFontSize(1));
 $("#fontShrinkBtn").addEventListener("click",()=>changeAiFontSize(-1));
-$("#indentBtn").addEventListener("click",()=>aiCommand("indent"));
-$("#outdentBtn").addEventListener("click",()=>aiCommand("outdent"));
+$("#indentBtn").addEventListener("click",()=>changeAiIndent(2));
+$("#outdentBtn").addEventListener("click",()=>changeAiIndent(-2));
 $("#formatPainterBtn").addEventListener("click",armFormatPainter);
 $("#aiEditor").addEventListener("mouseup",()=>setTimeout(tryApplyFormatPainter,0));
 $("#aiEditor").addEventListener("touchend",()=>setTimeout(tryApplyFormatPainter,50));

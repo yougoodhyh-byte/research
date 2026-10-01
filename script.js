@@ -349,8 +349,8 @@ function closeSideNav(){
   $("#menuToggle")?.setAttribute("aria-expanded","false");
 }
 function showView(id){
-  $(".view").forEach(v=>v.classList.remove("active"));
-  $("#nav button").forEach(b=>b.classList.remove("active"));
+  $$(".view").forEach(v=>v.classList.remove("active"));
+  $$("#nav button").forEach(b=>b.classList.remove("active"));
   $("#"+id)?.classList.add("active");
   $(`#nav button[data-view="${id}"]`)?.classList.add("active");
   const label=$("#currentSectionLabel");
@@ -358,9 +358,9 @@ function showView(id){
   closeSideNav();
 }
 function initNav(){
-  $("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
-  $("[data-jump]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.jump)));
-  $("[data-close]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.close).classList.add("hidden")));
+  $$("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
+  $$("[data-jump]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.jump)));
+  $$("[data-close]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.close).classList.add("hidden")));
   $("#menuToggle")?.addEventListener("click",()=>{
     const open=$("#sideNav")?.classList.contains("open");
     if(open) closeSideNav(); else openSideNav();

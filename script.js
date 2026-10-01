@@ -263,6 +263,8 @@ function renderReviewTemplates(){
   const box=$("#reviewTemplateList");
   if(!box) return;
   const list=files.filter(isReviewTemplate);
+  const count=$("#reviewTemplateCount");
+  if(count) count.textContent=list.length;
   box.innerHTML=list.map(f=>`
     <div class="review-template-item">
       ${fileActions(f,true)}
@@ -712,9 +714,22 @@ document.addEventListener("click", async e=>{
     "[data-add-paper],[data-edit-paper],[data-delete-paper]," +
     "[data-edit-service],[data-delete-service]," +
     "[data-preview-file],[data-download-file],[data-replace-file],[data-delete-file]," +
-    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-remove-pending-service-file],[data-jump]"
+    "[data-sort-group],[data-service-sort],[data-dismiss-alert],[data-archive-tab],[data-file-menu],[data-remove-pending-service-file],[data-review-template-toggle],[data-jump]"
   );
   if(!b) return;
+
+  if(b.dataset.reviewTemplateToggle!==undefined){
+    const panel=b.closest(".review-template-panel");
+    const mobile=window.matchMedia("(max-width: 820px)").matches;
+    if(mobile&&panel){
+      e.preventDefault();
+      e.stopPropagation();
+      const open=!panel.classList.contains("template-open");
+      panel.classList.toggle("template-open",open);
+      b.setAttribute("aria-expanded",open?"true":"false");
+    }
+    return;
+  }
 
   if(b.dataset.fileMenu){
     const control=b.closest("[data-file-control]");
@@ -757,9 +772,15 @@ document.addEventListener("click", async e=>{
   }
 });
 document.addEventListener("pointerdown",e=>{
-  if(!isMobileFileUI()) return;
-  if(e.target.closest("[data-file-control]")) return;
-  closeMobileFileMenus();
+  if(isMobileFileUI()&&!e.target.closest("[data-file-control]")) closeMobileFileMenus();
+
+  if(window.matchMedia("(max-width: 820px)").matches){
+    const panel=$(".review-template-panel.template-open");
+    if(panel&&!e.target.closest(".review-template-panel")){
+      panel.classList.remove("template-open");
+      panel.querySelector("[data-review-template-toggle]")?.setAttribute("aria-expanded","false");
+    }
+  }
 });
 document.addEventListener("change", async e=>{
   if(e.target.matches("[data-status-paper]")){

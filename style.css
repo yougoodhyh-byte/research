@@ -374,3 +374,29 @@ td .file-control .file-trigger-name{max-width:190px}
   .offline-draft-head{flex-direction:column}
   .offline-draft-actions{width:100%;justify-content:flex-start}
 }
+
+/* Header date under the workbench title */
+.brand-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:5px;
+  min-width:220px;
+  flex:0 0 auto;
+}
+.header-date{
+  min-height:18px;
+  font-size:10.5pt;
+  line-height:1.25;
+  color:#5f6b80;
+  font-weight:500;
+  white-space:nowrap;
+}
+#home.view.active{padding-top:0}
+@media(max-width:1000px){
+  .brand-wrap{min-width:auto}
+}
+@media(max-width:600px){
+  .header-date{font-size:9.5pt}
+}

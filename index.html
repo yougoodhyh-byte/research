@@ -4,30 +4,46 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261001-headerdate1">
+  <link rel="stylesheet" href="./style.css?v=20261001-sidenav1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
 
   <header class="topbar">
+    <button id="menuToggle" class="menu-toggle" type="button" aria-label="打开栏目菜单" aria-expanded="false" aria-controls="sideNav">
+      <span></span><span></span><span></span>
+    </button>
     <div class="brand-wrap">
       <div class="brand">▣ 科研工作台</div>
       <div id="headerDate" class="header-date" aria-label="当前日期"></div>
     </div>
-    <nav class="nav" id="nav">
-      <button class="active" data-view="home">首页</button>
-      <button data-view="submitted">已投稿</button>
-      <button data-view="review">外审中</button>
-      <button data-view="revision">返修中</button>
-      <button data-view="reviewService">外审服务</button>
-      <button data-view="templates">投稿模板</button>
-      <button data-view="archive">归档管理</button>
-    </nav>
+    <div id="currentSectionLabel" class="current-section-label">首页</div>
+    <div class="topbar-spacer"></div>
     <div class="account">
       <span id="accountEmail"></span>
       <button id="logoutBtn" class="btn ghost hidden">退出</button>
     </div>
   </header>
+
+  <div id="navBackdrop" class="nav-backdrop" aria-hidden="true"></div>
+  <aside id="sideNav" class="side-nav" aria-label="科研工作台栏目">
+    <div class="side-nav-head">
+      <div>
+        <strong>栏目导航</strong>
+        <small>选择栏目后自动收起</small>
+      </div>
+      <button id="menuClose" class="side-nav-close" type="button" aria-label="关闭栏目菜单">×</button>
+    </div>
+    <nav id="nav" class="side-nav-list">
+      <button class="active" data-view="home"><span>首页</span></button>
+      <button data-view="submitted"><span>已投稿</span></button>
+      <button data-view="review"><span>外审中</span></button>
+      <button data-view="revision"><span>返修中</span></button>
+      <button data-view="reviewService"><span>外审服务</span></button>
+      <button data-view="templates"><span>投稿模板</span></button>
+      <button data-view="archive"><span>归档管理</span></button>
+    </nav>
+  </aside>
 
   <main class="main">
     <div id="connectionStatus" class="connection-status hidden">
@@ -248,6 +264,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261001-headerdate1"></script>
+  <script src="./script.js?v=20261001-sidenav1"></script>
 </body>
 </html>

@@ -757,3 +757,74 @@ body.nav-open{overflow:hidden}
     box-shadow:0 6px 16px rgba(31,49,78,.06);
   }
 }
+
+/* Compact cloud storage usage */
+.storage-usage{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  height:34px;
+  padding:0 10px;
+  border:1px solid #dfe8f4;
+  border-radius:999px;
+  background:rgba(244,249,255,.88);
+  color:#51637b;
+  font-size:9pt;
+  white-space:nowrap;
+  position:relative;
+  overflow:hidden;
+  flex:0 0 auto;
+}
+.storage-usage-icon{color:#3d78bd;font-size:11pt;line-height:1}
+.storage-usage-label{font-weight:600}
+.storage-usage-text{color:#355675;font-variant-numeric:tabular-nums}
+.storage-usage-track{
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:3px;
+  height:2px;
+  border-radius:99px;
+  background:rgba(90,126,168,.10);
+  overflow:hidden;
+}
+.storage-usage-track>span{
+  display:block;
+  height:100%;
+  min-width:0;
+  border-radius:99px;
+  background:#4d8bd2;
+  transition:width .2s ease;
+}
+.storage-usage.storage-warning{
+  background:rgba(255,248,231,.92);
+  border-color:#efdba6;
+}
+.storage-usage.storage-warning .storage-usage-track>span{background:#d59a2e}
+.storage-usage.storage-full{
+  background:rgba(255,239,241,.94);
+  border-color:#efc4c9;
+  color:#8d4049;
+}
+.storage-usage.storage-full .storage-usage-track>span{background:#d95562}
+
+@media(max-width:1180px){
+  .storage-usage-label{display:none}
+}
+@media(max-width:760px){
+  .storage-usage{
+    height:31px;
+    padding:0 8px;
+    gap:4px;
+    font-size:8.5pt;
+  }
+  .storage-usage-text{
+    max-width:92px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+}
+@media(max-width:560px){
+  .storage-usage{display:none}
+}

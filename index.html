@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-offline-draft-review2">
+  <link rel="stylesheet" href="./style.css?v=20261002-session-security1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -26,6 +26,7 @@
     </div>
     <div class="topbar-spacer"></div>
     <div class="account">
+      <span id="sessionModeBadge" class="session-mode-badge hidden"></span>
       <span id="accountEmail"></span>
       <button id="logoutBtn" class="btn ghost hidden">退出</button>
     </div>
@@ -228,6 +229,13 @@
       <p>登录同一账号后，你的数据和文件可在不同设备同步。</p>
       <label>邮箱<input id="authEmail" type="email" autocomplete="email"></label>
       <label>密码<input id="authPassword" type="password" autocomplete="current-password"></label>
+      <label class="keep-login-row">
+        <span class="keep-login-choice">
+          <input id="keepLogin" type="checkbox">
+          <span>保持登录</span>
+        </span>
+        <small>仅在自己的设备上勾选。未勾选时，本次页面有效，刷新后需重新登录。</small>
+      </label>
       <div class="dialog-actions">
         <button id="signupBtn" class="btn">注册</button>
         <button id="loginBtn" class="btn primary">登录</button>
@@ -301,6 +309,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-offline-draft-review2"></script>
+  <script src="./script.js?v=20261002-session-security1"></script>
 </body>
 </html>

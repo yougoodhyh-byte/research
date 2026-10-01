@@ -47,6 +47,7 @@ let syncingOfflineDraft=false;
 let navCloseTimer=null;
 let aiFormatPainter=null;
 let aiTocUpdating=false;
+let aiSelectionRange=null;
 
 
 function draftKey(){
@@ -1279,6 +1280,94 @@ function sanitizeAiHtmlForSave(){
   return clone.innerHTML;
 }
 
+
+function aiSelectionInsideEditor(sel=window.getSelection()){
+  const editor=$("#aiEditor");
+  if(!editor||!sel||!sel.rangeCount||sel.isCollapsed) return false;
+  const range=sel.getRangeAt(0);
+  const node=range.commonAncestorContainer;
+  return editor.contains(node.nodeType===Node.ELEMENT_NODE?node:node.parentNode);
+}
+function rememberAiSelection(){
+  const sel=window.getSelection();
+  if(!aiSelectionInsideEditor(sel)){
+    aiSelectionRange=null;
+    return false;
+  }
+  aiSelectionRange=sel.getRangeAt(0).cloneRange();
+  return true;
+}
+function restoreAiSelection(){
+  if(!aiSelectionRange) return false;
+  const editor=$("#aiEditor");
+  const node=aiSelectionRange.commonAncestorContainer;
+  if(!editor||!editor.contains(node.nodeType===Node.ELEMENT_NODE?node:node.parentNode)) return false;
+  const sel=window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(aiSelectionRange);
+  return true;
+}
+function hideAiSelectionToolbar(){
+  const bar=$("#aiSelectionToolbar");
+  if(!bar) return;
+  bar.classList.remove("show");
+  bar.setAttribute("aria-hidden","true");
+}
+function updateAiSelectionToolbar(){
+  const bar=$("#aiSelectionToolbar");
+  if(!bar) return;
+  const sel=window.getSelection();
+  if(!aiSelectionInsideEditor(sel)){
+    hideAiSelectionToolbar();
+    return;
+  }
+
+  const range=sel.getRangeAt(0);
+  const rects=range.getClientRects();
+  const rect=(rects&&rects.length?rects[0]:range.getBoundingClientRect());
+  if(!rect||(!rect.width&&!rect.height)){
+    hideAiSelectionToolbar();
+    return;
+  }
+
+  aiSelectionRange=range.cloneRange();
+  bar.classList.add("show");
+  bar.setAttribute("aria-hidden","false");
+
+  const margin=8, gap=8;
+  const barRect=bar.getBoundingClientRect();
+  let left=rect.left+(rect.width/2)-(barRect.width/2);
+  left=Math.max(margin,Math.min(window.innerWidth-barRect.width-margin,left));
+
+  let top=rect.top-barRect.height-gap;
+  const topLimit=(document.querySelector(".topbar")?.getBoundingClientRect().bottom||0)+4;
+  if(top<topLimit) top=rect.bottom+gap;
+  top=Math.max(margin,Math.min(window.innerHeight-barRect.height-margin,top));
+
+  bar.style.left=Math.round(left)+"px";
+  bar.style.top=Math.round(top)+"px";
+}
+function runAiFloatingAction(action){
+  if(!restoreAiSelection()) return;
+  switch(action){
+    case "bold": aiCommand("bold"); break;
+    case "underline": aiCommand("underline"); break;
+    case "red": toggleAiRed(); break;
+    case "grow": changeAiFontSize(1); break;
+    case "shrink": changeAiFontSize(-1); break;
+    case "h1": setAiHeading1(); break;
+    case "indent": changeAiIndent(2); break;
+    case "outdent": changeAiIndent(-2); break;
+    case "paint": armFormatPainter(); break;
+  }
+  if(action!=="paint"){
+    rememberAiSelection();
+    requestAnimationFrame(updateAiSelectionToolbar);
+  }else{
+    hideAiSelectionToolbar();
+  }
+}
+
 function markAiChanged(){
   $("#aiSaveState").textContent=navigator.onLine?"待保存":"离线草稿";
   clearTimeout(saveTimer);
@@ -1612,8 +1701,31 @@ $("#fontShrinkBtn").addEventListener("click",()=>changeAiFontSize(-1));
 $("#indentBtn").addEventListener("click",()=>changeAiIndent(2));
 $("#outdentBtn").addEventListener("click",()=>changeAiIndent(-2));
 $("#formatPainterBtn").addEventListener("click",armFormatPainter);
-$("#aiEditor").addEventListener("mouseup",()=>setTimeout(tryApplyFormatPainter,0));
-$("#aiEditor").addEventListener("touchend",()=>setTimeout(tryApplyFormatPainter,50));
+
+$$("[data-ai-float-action]").forEach(btn=>{
+  btn.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  btn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    runAiFloatingAction(btn.dataset.aiFloatAction);
+  });
+});
+
+$("#aiEditor").addEventListener("mouseup",()=>{
+  setTimeout(()=>{
+    tryApplyFormatPainter();
+    if(!aiFormatPainter) updateAiSelectionToolbar();
+  },0);
+});
+$("#aiEditor").addEventListener("touchend",()=>{
+  setTimeout(()=>{
+    tryApplyFormatPainter();
+    if(!aiFormatPainter) updateAiSelectionToolbar();
+  },80);
+});
 $("#aiEditor").addEventListener("input",()=>{
   ensureAiToc();
   markAiChanged();
@@ -1667,5 +1779,18 @@ window.addEventListener("online",async()=>{
 });
 window.addEventListener("focus",renderHeaderDate);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) renderHeaderDate(); });
+
+document.addEventListener("selectionchange",()=>{
+  if(aiFormatPainter) return;
+  clearTimeout(window.__aiSelectionToolbarTimer);
+  window.__aiSelectionToolbarTimer=setTimeout(updateAiSelectionToolbar,35);
+});
+document.addEventListener("pointerdown",e=>{
+  if(e.target.closest("#aiSelectionToolbar")||e.target.closest("#aiEditor")) return;
+  hideAiSelectionToolbar();
+});
+window.addEventListener("scroll",hideAiSelectionToolbar,{passive:true});
+window.addEventListener("resize",hideAiSelectionToolbar,{passive:true});
+
 init();
 })();

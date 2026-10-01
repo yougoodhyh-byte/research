@@ -966,3 +966,67 @@ body.nav-open{overflow:hidden}
   .ai-editor h1{font-size:14pt}
   .ai-image-block img{max-height:480px}
 }
+
+/* Word-like contextual toolbar for selected AI text */
+.ai-selection-toolbar{
+  position:fixed;
+  z-index:70;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:5px;
+  border:1px solid rgba(205,217,233,.92);
+  border-radius:11px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 10px 30px rgba(31,49,78,.18);
+  backdrop-filter:blur(14px) saturate(130%);
+  -webkit-backdrop-filter:blur(14px) saturate(130%);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(4px) scale(.98);
+  transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
+  max-width:calc(100vw - 16px);
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.ai-selection-toolbar::-webkit-scrollbar{display:none}
+.ai-selection-toolbar.show{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:translateY(0) scale(1);
+}
+.ai-selection-toolbar button{
+  min-width:31px;
+  height:30px;
+  padding:0 7px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#30435e;
+  cursor:pointer;
+  font:inherit;
+  font-size:9pt;
+  font-weight:600;
+  line-height:1;
+  white-space:nowrap;
+}
+.ai-selection-toolbar button:hover{
+  background:#edf5ff;
+  color:#176bdc;
+}
+.ai-selection-toolbar .float-red{color:#d62839}
+@media(max-width:600px){
+  .ai-selection-toolbar{
+    gap:2px;
+    padding:4px;
+    max-width:calc(100vw - 12px);
+  }
+  .ai-selection-toolbar button{
+    min-width:34px;
+    height:34px;
+    padding:0 7px;
+    font-size:9.5pt;
+  }
+}

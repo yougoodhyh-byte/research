@@ -706,3 +706,54 @@ body.nav-open{overflow:hidden}
     border-radius:9999px !important;
   }
 }
+
+/* Sticky section headers while scrolling */
+.view:not(#home)>.card>.card-head,
+#templates.view>.two-col>.card>.card-head{
+  position:sticky;
+  top:78px;
+  z-index:8;
+  background:rgba(255,255,255,.90);
+  backdrop-filter:blur(14px) saturate(125%);
+  -webkit-backdrop-filter:blur(14px) saturate(125%);
+  box-shadow:0 8px 20px rgba(31,49,78,.055);
+}
+
+/* Keep the sticky header visually separated from scrolling table/content */
+.view:not(#home)>.card>.card-head::after,
+#templates.view>.two-col>.card>.card-head::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-1px;
+  height:1px;
+  background:rgba(222,230,240,.95);
+}
+
+/* The review-service header is larger; keep its contents stable while sticky */
+#reviewService .review-service-head{
+  align-items:center;
+}
+
+/* Archive tabs remain available together with the sticky archive title */
+#archive .archive-head{
+  background:rgba(255,255,255,.92);
+}
+
+@media(max-width:1000px){
+  .view:not(#home)>.card>.card-head,
+  #templates.view>.two-col>.card>.card-head{
+    top:70px;
+  }
+}
+
+@media(max-width:600px){
+  .view:not(#home)>.card>.card-head,
+  #templates.view>.two-col>.card>.card-head{
+    top:70px;
+    padding-top:11px;
+    padding-bottom:11px;
+    box-shadow:0 6px 16px rgba(31,49,78,.06);
+  }
+}

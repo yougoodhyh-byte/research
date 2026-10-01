@@ -1228,13 +1228,19 @@ function ensureAiToc(){
 
     const headings=[...editor.querySelectorAll("h1")].filter(h=>!h.closest(".ai-toc"));
     headings.forEach((heading,index)=>{
-      heading.id="ai-heading-"+(index+1);
+      const number=String(index+1);
+      heading.id="ai-heading-"+number;
+      heading.dataset.aiHeadingNumber=number;
     });
 
     const items=headings.length
       ? headings.map((heading,index)=>{
-          const title=cleanDetectedText(heading.textContent)||("一级标题 "+(index+1));
-          return '<button type="button" class="ai-toc-link" data-ai-toc-target="'+esc(heading.id)+'">'+esc(title)+'</button>';
+          const number=String(index+1);
+          const title=cleanDetectedText(heading.textContent)||("一级标题 "+number);
+          return '<button type="button" class="ai-toc-link" data-ai-toc-target="'+esc(heading.id)+'">'+
+            '<span class="ai-toc-number">'+esc(number)+'.</span>'+
+            '<span class="ai-toc-text">'+esc(title)+'</span>'+
+          '</button>';
         }).join("")
       : '<span class="ai-toc-empty">暂无一级标题</span>';
 
@@ -1346,6 +1352,7 @@ function sanitizeAiHtmlForSave(){
   ensureAiToc();
   const clone=editor.cloneNode(true);
   clone.querySelector(".ai-toc")?.classList.remove("open");
+  clone.querySelectorAll("h1[data-ai-heading-number]").forEach(h=>h.removeAttribute("data-ai-heading-number"));
   const savedTocToggle=clone.querySelector("[data-ai-toc-toggle]");
   if(savedTocToggle) savedTocToggle.setAttribute("aria-expanded","false");
   clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{

@@ -1167,15 +1167,29 @@ function ensureAiEditableTail(){
   }else if(!tail.innerHTML.trim()){
     tail.innerHTML="<br>";
   }
+
+  // Make the body a real editing host. This is more reliable on mobile Edge/Chrome
+  // than relying only on inherited contenteditable from the outer editor.
   tail.setAttribute("contenteditable","true");
-  tail.setAttribute("tabindex","-1");
+  tail.setAttribute("role","textbox");
+  tail.setAttribute("aria-label","AI辅助正文输入区域");
+  tail.setAttribute("aria-multiline","true");
+  tail.setAttribute("inputmode","text");
+  tail.setAttribute("enterkeyhint","enter");
+  tail.setAttribute("spellcheck","true");
+  tail.tabIndex=0;
+
+  // Keep the body at the end, so the large blank area always belongs to it.
+  if(editor.lastElementChild!==tail) editor.appendChild(tail);
   return tail;
 }
 function placeAiCaretAtEnd(){
   const editor=aiEditorEl();
   if(!editor) return;
   const tail=ensureAiEditableTail();
-  try{ tail.focus({preventScroll:true}); }catch{ editor.focus({preventScroll:true}); }
+  if(!tail) return;
+
+  try{ tail.focus({preventScroll:true}); }catch{ tail.focus(); }
 
   const range=document.createRange();
   range.selectNodeContents(tail);
@@ -1326,6 +1340,9 @@ function sanitizeAiHtmlForSave(){
   const clone=editor.cloneNode(true);
   clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{
     img.removeAttribute("src");
+  });
+  clone.querySelectorAll(".ai-editor-tail").forEach(tail=>{
+    ["contenteditable","role","aria-label","aria-multiline","inputmode","enterkeyhint","spellcheck","tabindex"].forEach(attr=>tail.removeAttribute(attr));
   });
   return clone.innerHTML;
 }
@@ -1789,6 +1806,17 @@ function aiTapNeedsCaret(e){
   const hasRich=!!tail.querySelector("img,video,audio,table");
   return !hasText&&!hasRich;
 }
+$("#aiEditor").addEventListener("pointerdown",e=>{
+  if(aiTapNeedsCaret(e)){
+    // Must focus synchronously inside the user gesture so the mobile keyboard opens.
+    placeAiCaretAtEnd();
+  }
+});
+$("#aiEditor").addEventListener("touchstart",e=>{
+  if(aiTapNeedsCaret(e)){
+    placeAiCaretAtEnd();
+  }
+},{passive:true});
 $("#aiEditor").addEventListener("pointerup",e=>{
   if(aiTapNeedsCaret(e)) setTimeout(placeAiCaretAtEnd,0);
 });

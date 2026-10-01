@@ -327,16 +327,47 @@ function showSetup(){
   b.innerHTML='尚未配置云端同步。请先按压缩包中的 <code>README.md</code> 创建 Supabase 项目，并把 Project URL 和 Publishable key 填入 <code>config.js</code>。';
   $("#authModal").classList.add("hidden");
 }
+const VIEW_LABELS={
+  home:"首页",
+  submitted:"已投稿",
+  review:"外审中",
+  revision:"返修中",
+  reviewService:"外审服务",
+  templates:"投稿模板",
+  archive:"归档管理"
+};
+function openSideNav(){
+  document.body.classList.add("nav-open");
+  $("#sideNav")?.classList.add("open");
+  $("#navBackdrop")?.classList.add("show");
+  $("#menuToggle")?.setAttribute("aria-expanded","true");
+}
+function closeSideNav(){
+  document.body.classList.remove("nav-open");
+  $("#sideNav")?.classList.remove("open");
+  $("#navBackdrop")?.classList.remove("show");
+  $("#menuToggle")?.setAttribute("aria-expanded","false");
+}
 function showView(id){
-  $$(".view").forEach(v=>v.classList.remove("active"));
-  $$(".nav button").forEach(b=>b.classList.remove("active"));
+  $(".view").forEach(v=>v.classList.remove("active"));
+  $("#nav button").forEach(b=>b.classList.remove("active"));
   $("#"+id)?.classList.add("active");
-  $(`.nav button[data-view="${id}"]`)?.classList.add("active");
+  $(`#nav button[data-view="${id}"]`)?.classList.add("active");
+  const label=$("#currentSectionLabel");
+  if(label) label.textContent=VIEW_LABELS[id]||"科研工作台";
+  closeSideNav();
 }
 function initNav(){
-  $$(".nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
-  $$("[data-jump]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.jump)));
-  $$("[data-close]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.close).classList.add("hidden")));
+  $("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
+  $("[data-jump]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.jump)));
+  $("[data-close]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.close).classList.add("hidden")));
+  $("#menuToggle")?.addEventListener("click",()=>{
+    const open=$("#sideNav")?.classList.contains("open");
+    if(open) closeSideNav(); else openSideNav();
+  });
+  $("#menuClose")?.addEventListener("click",closeSideNav);
+  $("#navBackdrop")?.addEventListener("click",closeSideNav);
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSideNav(); });
 }
 async function init(){
   initNav();

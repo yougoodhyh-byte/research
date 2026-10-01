@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20260930-serviceautofill1">
+  <link rel="stylesheet" href="./style.css?v=20261001-templatecollapse1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -64,13 +64,19 @@
           <div class="review-service-title"><h2>外审服务</h2><div class="sub">记录你为期刊提供的同行评审服务。</div></div>
           <div class="review-template-panel">
             <div class="review-template-toolbar">
-              <div>
-                <b>审稿模板</b>
-                <div class="sub">支持任意格式；可预览、替换、下载和删除。</div>
-              </div>
+              <button type="button" class="review-template-summary" data-review-template-toggle aria-expanded="false">
+                <span class="review-template-title-line">
+                  <b>审稿模板</b>
+                  <span id="reviewTemplateCount" class="review-template-count">0</span>
+                </span>
+                <span class="review-template-chevron" aria-hidden="true">⌄</span>
+              </button>
               <label class="btn primary compact-upload">＋ 新增模板<input id="reviewTemplateUpload" type="file" hidden multiple></label>
             </div>
-            <div id="reviewTemplateList" class="review-template-list"></div>
+            <div class="review-template-detail">
+              <div class="sub review-template-sub">支持任意格式；可预览、替换、下载和删除。</div>
+              <div id="reviewTemplateList" class="review-template-list"></div>
+            </div>
           </div>
           <button id="addServiceBtn" class="btn primary review-service-add">＋ 新增外审服务</button>
         </div>
@@ -226,6 +232,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20260930-renderfix2"></script>
+  <script src="./script.js?v=20261001-templatecollapse1"></script>
 </body>
 </html>

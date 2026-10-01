@@ -20,6 +20,14 @@ const startToday = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtDate = d => d ? new Date(d+"T00:00:00").toLocaleDateString("zh-CN") : "—";
 const fmtSize = n => n == null ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`;
+const STORAGE_FREE_LIMIT = 1024*1024*1024;
+function fmtStorageSize(n){
+  n=Number(n)||0;
+  if(n<1024) return n+" B";
+  if(n<1024*1024) return (n/1024).toFixed(n<10*1024?1:0)+" KB";
+  if(n<1024*1024*1024) return (n/(1024*1024)).toFixed(n<10*1024*1024?1:0)+" MB";
+  return (n/(1024*1024*1024)).toFixed(2)+" GB";
+}
 let sb = null, user = null;
 let papers=[], services=[], files=[], aiNote="", notifications=[];
 let realtimeChannel=null, saveTimer=null, monitorReady=false;
@@ -497,7 +505,25 @@ function subscribeRealtime(){
     .on("postgres_changes",{event:"*",schema:"public",table:"review_notifications"},async()=>{await loadNotifications();renderAlerts();})
     .subscribe();
 }
+function renderStorageUsage(){
+  const wrap=$("#storageUsage");
+  const text=$("#storageUsageText");
+  const bar=$("#storageUsageBar");
+  if(!wrap||!text||!bar) return;
+
+  const total=files.reduce((sum,f)=>sum+(Number(f.file_size)||0),0);
+  const remaining=Math.max(0,STORAGE_FREE_LIMIT-total);
+  const percent=Math.min(100,(total/STORAGE_FREE_LIMIT)*100);
+
+  text.textContent=fmtStorageSize(total)+" / 1 GB";
+  bar.style.width=(percent>0&&percent<0.35?0.35:percent).toFixed(2)+"%";
+  wrap.title="云端文件 "+files.length+" 个 · 已使用 "+fmtStorageSize(total)+" · 剩余约 "+fmtStorageSize(remaining);
+  wrap.setAttribute("aria-label",wrap.title);
+  wrap.classList.toggle("storage-warning",percent>=80);
+  wrap.classList.toggle("storage-full",percent>=95);
+}
 function renderAll(){
+  renderStorageUsage();
   renderCounts(); renderAlerts(); renderPapers(); renderServices(); renderReviewTemplates(); renderTemplates(); renderArchive();
 }
 function renderAlerts(){

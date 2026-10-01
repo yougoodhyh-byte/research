@@ -177,7 +177,11 @@ function applyDraftOperation(op){
     }
   }else if(op.entity==="ai"){
     aiNote=op.payload?.content_html||"";
-    if(document.activeElement!==$("#aiEditor")) $("#aiEditor").innerHTML=aiNote;
+    if(document.activeElement!==$("#aiEditor")){
+      $("#aiEditor").innerHTML=aiNote;
+      ensureAiToc();
+      ensureAiEditableTail();
+    }
   }
 }
 function applyOfflineDraftOverlay(){
@@ -1163,13 +1167,15 @@ function ensureAiEditableTail(){
   }else if(!tail.innerHTML.trim()){
     tail.innerHTML="<br>";
   }
+  tail.setAttribute("contenteditable","true");
+  tail.setAttribute("tabindex","-1");
   return tail;
 }
 function placeAiCaretAtEnd(){
   const editor=aiEditorEl();
   if(!editor) return;
   const tail=ensureAiEditableTail();
-  editor.focus({preventScroll:true});
+  try{ tail.focus({preventScroll:true}); }catch{ editor.focus({preventScroll:true}); }
 
   const range=document.createRange();
   range.selectNodeContents(tail);
@@ -1770,19 +1776,27 @@ $("#aiEditor").addEventListener("touchend",()=>{
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },80);
 });
-$("#aiEditor").addEventListener("pointerup",e=>{
+function aiTapNeedsCaret(e){
   const editor=$("#aiEditor");
-  if(!editor) return;
-  if(e.target===editor){
-    setTimeout(placeAiCaretAtEnd,0);
-  }
+  if(!editor) return false;
+  if(e.target===editor) return true;
+  const tail=e.target.closest?.(".ai-editor-tail");
+  if(!tail) return false;
+
+  // When the starter area is still empty, mobile browsers often fail to create
+  // a native caret after the non-editable TOC. Force a caret only in that case.
+  const hasText=!!tail.textContent?.replace(/\u200B/g,"").trim();
+  const hasRich=!!tail.querySelector("img,video,audio,table");
+  return !hasText&&!hasRich;
+}
+$("#aiEditor").addEventListener("pointerup",e=>{
+  if(aiTapNeedsCaret(e)) setTimeout(placeAiCaretAtEnd,0);
 });
 $("#aiEditor").addEventListener("click",e=>{
-  const editor=$("#aiEditor");
-  if(!editor) return;
-  if(e.target===editor){
-    placeAiCaretAtEnd();
-  }
+  if(aiTapNeedsCaret(e)) placeAiCaretAtEnd();
+});
+$("#aiEditor").addEventListener("touchend",e=>{
+  if(aiTapNeedsCaret(e)) setTimeout(placeAiCaretAtEnd,30);
 });
 $("#aiEditor").addEventListener("input",()=>{
   ensureAiToc();

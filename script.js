@@ -47,6 +47,7 @@ let syncingOfflineDraft=false;
 let navCloseTimer=null;
 let aiFormatPainter=null;
 let aiTocUpdating=false;
+let aiTocOpen=false;
 let aiSelectionRange=null;
 
 
@@ -1237,7 +1238,13 @@ function ensureAiToc(){
         }).join("")
       : '<span class="ai-toc-empty">暂无一级标题</span>';
 
-    toc.innerHTML='<div class="ai-toc-title">目录</div><div class="ai-toc-items">'+items+'</div>';
+    toc.classList.toggle("open",aiTocOpen);
+    toc.innerHTML=
+      '<button type="button" class="ai-toc-toggle" data-ai-toc-toggle aria-expanded="'+(aiTocOpen?"true":"false")+'">'+
+        '<span class="ai-toc-title">目录</span>'+
+        '<span class="ai-toc-chevron" aria-hidden="true">⌄</span>'+
+      '</button>'+
+      '<div class="ai-toc-items">'+items+'</div>';
     ensureAiEditableTail();
   } finally {
     aiTocUpdating=false;
@@ -1338,6 +1345,9 @@ function sanitizeAiHtmlForSave(){
   if(!editor) return "";
   ensureAiToc();
   const clone=editor.cloneNode(true);
+  clone.querySelector(".ai-toc")?.classList.remove("open");
+  const savedTocToggle=clone.querySelector("[data-ai-toc-toggle]");
+  if(savedTocToggle) savedTocToggle.setAttribute("aria-expanded","false");
   clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{
     img.removeAttribute("src");
   });
@@ -1639,6 +1649,19 @@ function closeMobileFileMenus(except=null){
 }
 
 document.addEventListener("click",e=>{
+  const toggle=e.target.closest("[data-ai-toc-toggle]");
+  if(toggle){
+    e.preventDefault();
+    e.stopPropagation();
+    aiTocOpen=!aiTocOpen;
+    const toc=toggle.closest(".ai-toc");
+    if(toc){
+      toc.classList.toggle("open",aiTocOpen);
+      toggle.setAttribute("aria-expanded",aiTocOpen?"true":"false");
+    }
+    return;
+  }
+
   const link=e.target.closest("[data-ai-toc-target]");
   if(!link) return;
   const target=document.getElementById(link.dataset.aiTocTarget);

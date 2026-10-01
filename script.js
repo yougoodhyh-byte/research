@@ -1151,6 +1151,25 @@ function aiCommand(command,value=null){
   document.execCommand(command,false,value);
   markAiChanged();
 }
+function currentAiFontLevel(){
+  focusAiEditor();
+  const raw=String(document.queryCommandValue("fontSize")||"").trim();
+  const n=parseInt(raw,10);
+  return Number.isFinite(n)&&n>=1&&n<=7?n:3;
+}
+function changeAiFontSize(delta){
+  const next=Math.max(1,Math.min(7,currentAiFontLevel()+delta));
+  aiCommand("fontSize",String(next));
+}
+function aiColorIsRed(value){
+  const s=String(value||"").toLowerCase().replace(/\s/g,"");
+  return s==="#d62839"||s==="rgb(214,40,57)"||s==="rgba(214,40,57,1)";
+}
+function toggleAiRed(){
+  focusAiEditor();
+  const current=document.queryCommandValue("foreColor");
+  aiCommand("foreColor",aiColorIsRed(current)?"#17233a":"#d62839");
+}
 function selectionElement(){
   const sel=window.getSelection();
   if(!sel||!sel.rangeCount) return null;
@@ -1400,12 +1419,12 @@ $("#reviewTemplateUpload").addEventListener("change",async e=>{
   e.target.value="";
 });
 $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[0];if(f&&replaceContext)await uploadFile(f,replaceContext.kind,replaceContext.review_service_id,replaceContext);replaceContext=null;});
-$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>e.preventDefault()));
+$$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>e.preventDefault()));
 $("#boldBtn").addEventListener("click",()=>aiCommand("bold"));
 $("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
-$("#redBtn").addEventListener("click",()=>aiCommand("foreColor","#d62839"));
-$("#fontGrowBtn").addEventListener("click",()=>aiCommand("increaseFontSize"));
-$("#fontShrinkBtn").addEventListener("click",()=>aiCommand("decreaseFontSize"));
+$("#redBtn").addEventListener("click",toggleAiRed);
+$("#fontGrowBtn").addEventListener("click",()=>changeAiFontSize(1));
+$("#fontShrinkBtn").addEventListener("click",()=>changeAiFontSize(-1));
 $("#indentBtn").addEventListener("click",()=>aiCommand("indent"));
 $("#outdentBtn").addEventListener("click",()=>aiCommand("outdent"));
 $("#formatPainterBtn").addEventListener("click",armFormatPainter);

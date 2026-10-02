@@ -170,7 +170,7 @@ function loadCloudCache(){
 }
 
 const PAPER_FIELD_LABELS={
-  title:"标题",journal:"期刊名",link:"链接",status:"状态",
+  title:"标题",journal:"期刊名",link:"链接",status:"状态",display_color:"显示颜色",
   event_date:"日期",deadline:"返修截止日期",monitor_enabled:"外审动态监控"
 };
 const SERVICE_FIELD_LABELS={
@@ -192,6 +192,7 @@ function draftFieldDisplay(entity,key,value){
     if(entity==="service") return value==="reviewed"?"已审":"未审";
   }
   if(key==="monitor_enabled") return value?"开启":"关闭";
+  if(key==="display_color") return value==="lavender"?"浅紫色":"黑色";
   let s=String(value);
   if(key==="link"&&s.length>45) s=s.slice(0,42)+"…";
   return s;
@@ -225,6 +226,7 @@ function paperFormRow(){
     journal:$("#paperJournal")?.value.trim()||"",
     link:$("#paperLink")?.value.trim()||"",
     status,
+    display_color:$("#paperDisplayColor")?.value||"black",
     event_date:$("#paperDate")?.value||todayISO(),
     deadline:status==="revision"?($("#paperDeadline")?.value||null):null,
     updated_at:new Date().toISOString()
@@ -809,6 +811,9 @@ function sortHead(group,key,label){
   const s=sortState[group],mark=s.key===key?(s.dir==="asc"?"▲":"▼"):"↕";
   return `<th class="sortable" data-sort-group="${group}" data-sort-key="${key}">${label} <span>${mark}</span></th>`;
 }
+function paperTextClass(p){
+  return p?.display_color==="lavender"?"paper-text-lavender":"";
+}
 function renderPapers(){
   ["submitted","review","revision"].forEach(status=>{
     const el=$("#"+status), list=sortRows(papers.filter(p=>p.status===status),sortState[status]);
@@ -819,7 +824,7 @@ function renderPapers(){
     const rows=list.map(p=>{
       const remaining=status==="revision"?remainingHtml(p.deadline):"";
       return `<tr>
-        <td>${esc(p.title)}</td><td>${esc(p.journal||"—")}</td><td>${linkHtml(p.link)}</td>
+        <td class="${paperTextClass(p)}">${esc(p.title)}</td><td class="${paperTextClass(p)}">${esc(p.journal||"—")}</td><td>${linkHtml(p.link)}</td>
         <td>${fmtDate(p.event_date)}</td>
         ${status==="revision"?`<td>${fmtDate(p.deadline)}</td><td>${remaining}</td>`:`<td>${daysSince(p.event_date)??"—"} 天</td>`}
         <td>${statusSelect(p)}</td>
@@ -924,8 +929,8 @@ function renderArchiveTabs(){
 function renderArchive(){
   $("#archiveBody").innerHTML=papers.filter(p=>!ACTIVE.includes(p.status)).map(p=>`
     <tr>
-      <td>${esc(p.title)}</td>
-      <td>${esc(p.journal||"—")}</td>
+      <td class="${paperTextClass(p)}">${esc(p.title)}</td>
+      <td class="${paperTextClass(p)}">${esc(p.journal||"—")}</td>
       <td>${linkHtml(p.link)}</td>
       <td>${PAPER_STATUSES[p.status]}</td>
       <td>${fmtDate(p.event_date)}</td>
@@ -979,7 +984,7 @@ function openPaper(status="submitted",id=null){
   const p=id?papers.find(x=>x.id===id):null;
   paperFormDraftId=id||crypto.randomUUID();
   $("#paperId").value=p?.id||""; $("#paperTitle").value=p?.title||""; $("#paperJournal").value=p?.journal||""; $("#paperLink").value=p?.link||"";
-  $("#paperStatus").value=p?.status||status; $("#paperDate").value=p?.event_date||todayISO(); $("#paperDeadline").value=p?.deadline||"";
+  $("#paperStatus").value=p?.status||status; $("#paperDisplayColor").value=p?.display_color||"black"; $("#paperDate").value=p?.event_date||todayISO(); $("#paperDeadline").value=p?.deadline||"";
   $("#paperMonitor").checked=!!p?.monitor_enabled;
   syncPaperModal();
   paperFormInitial=paperFormRow();
@@ -993,6 +998,7 @@ async function savePaper(){
     journal:$("#paperJournal").value.trim(),
     link:$("#paperLink").value.trim(),
     status:$("#paperStatus").value,
+    display_color:$("#paperDisplayColor").value||"black",
     event_date:$("#paperDate").value||todayISO(),
     deadline:$("#paperStatus").value==="revision"?($("#paperDeadline").value||null):null,
     updated_at:new Date().toISOString()
@@ -2216,7 +2222,7 @@ $("#paperStatus").addEventListener("change",()=>{
   syncPaperModal();
   scheduleOfflineFormDraft();
 });
-["#paperTitle","#paperJournal","#paperLink","#paperDate","#paperDeadline","#paperMonitor",
+["#paperTitle","#paperJournal","#paperLink","#paperDate","#paperDeadline","#paperMonitor","#paperDisplayColor",
  "#serviceTitle","#serviceJournal","#serviceLink","#serviceStart","#serviceEnd","#serviceStatus"]
   .forEach(sel=>{
     const el=$(sel);

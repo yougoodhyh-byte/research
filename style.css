@@ -1739,4 +1739,9 @@ body.nav-open{overflow:hidden}
 }
 
 /* Obsolete drawer/floating navigation is disabled */
-#menuToggle,#sideNav,#navBackdrop,#navHoverZone,#floatingHomeBtn{display:none !important}
+#menuToggle,#sideNav,#navBackdrop,#navHoverZone{display:none !important}
+
+/* Restore persistent translucent Home shortcut */
+#floatingHomeBtn.floating-home-btn{
+  display:flex !important;
+}

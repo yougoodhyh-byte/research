@@ -95,6 +95,7 @@ let aiTocOpen=false;
 let aiSelectionRange=null;
 let aiSearchRanges=[];
 let aiSearchIndex=-1;
+let aiEditMode=false;
 let aiTocRefreshTimer=null;
 let aiEnterAfterHeading=false;
 let paperFormDraftId=null;
@@ -673,6 +674,7 @@ async function enterApp(){
   if(navigator.onLine&&!hasOfflineDraft()) subscribeRealtime();
   showLegacyOffer();
   renderOfflineState();
+  setAiEditMode(false,{save:false});
 }
 async function refreshAll(){
   if(!navigator.onLine){
@@ -1547,6 +1549,7 @@ function normalizeAiBodyTypingState(){
 }
 
 function setAiHeading1(){
+  if(!aiEditMode) return;
   focusAiEditor();
   document.execCommand("formatBlock",false,"h1");
   scheduleAiTocRefresh(0);
@@ -1655,6 +1658,138 @@ function sanitizeAiHtmlForSave(){
 }
 
 
+function setAiEditMode(enabled,{save=true}={}){
+  const editor=$("#aiEditor");
+  const button=$("#aiEditToggle");
+  if(!editor) return;
+
+  const wasEditing=aiEditMode;
+  aiEditMode=!!enabled;
+
+  editor.setAttribute("contenteditable",aiEditMode?"true":"false");
+  editor.setAttribute("aria-readonly",aiEditMode?"false":"true");
+  editor.classList.toggle("editing",aiEditMode);
+  $(".ai-editor-card")?.classList.toggle("editing",aiEditMode);
+
+  $$(".ai-tool").forEach(btn=>{
+    btn.disabled=!aiEditMode;
+    btn.setAttribute("aria-disabled",aiEditMode?"false":"true");
+  });
+
+  if(button){
+    button.textContent=aiEditMode?"完成":"编辑";
+    button.setAttribute("aria-pressed",aiEditMode?"true":"false");
+    button.classList.toggle("primary",aiEditMode);
+  }
+
+  if(!aiEditMode){
+    disarmFormatPainter();
+    hideAiSelectionToolbar();
+    window.getSelection()?.removeAllRanges();
+    if(wasEditing&&save){
+      clearTimeout(saveTimer);
+      saveAi();
+    }
+    $("#aiSaveState").textContent=navigator.onLine?"只读":"离线 · 只读";
+  }else{
+    $("#aiSaveState").textContent="编辑中";
+    requestAnimationFrame(()=>editor.focus({preventScroll:true}));
+  }
+}
+
+async function copyAiSelection(){
+  if(!restoreAiSelection()) return;
+  const text=window.getSelection()?.toString()||"";
+  if(!text) return;
+
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch{
+    const ta=document.createElement("textarea");
+    ta.value=text;
+    ta.style.position="fixed";
+    ta.style.opacity="0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{document.execCommand("copy");}catch{}
+    ta.remove();
+  }
+
+  $("#aiSaveState").textContent="已复制";
+  setTimeout(()=>{
+    $("#aiSaveState").textContent=aiEditMode?"编辑中":"只读";
+  },900);
+}
+
+function insertAiPlainText(text){
+  if(!aiEditMode) return false;
+  if(!restoreAiSelection()){
+    const editor=$("#aiEditor");
+    if(!editor) return false;
+    editor.focus({preventScroll:true});
+  }
+
+  const value=String(text??"").replace(/\r\n?/g,"\n");
+  if(!value) return false;
+
+  let inserted=false;
+  try{
+    inserted=document.execCommand("insertText",false,value);
+  }catch{}
+
+  if(!inserted){
+    const sel=window.getSelection();
+    if(!sel||!sel.rangeCount) return false;
+    const range=sel.getRangeAt(0);
+    range.deleteContents();
+
+    const frag=document.createDocumentFragment();
+    const parts=value.split("\n");
+    parts.forEach((part,index)=>{
+      if(index) frag.appendChild(document.createElement("br"));
+      frag.appendChild(document.createTextNode(part));
+    });
+
+    const last=frag.lastChild;
+    range.insertNode(frag);
+    if(last){
+      range.setStartAfter(last);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+
+  ensureAiEditableTail();
+  scheduleAiTocRefresh();
+  refreshAiSearchAfterEdit();
+  markAiChanged();
+  return true;
+}
+
+async function pasteAiPlainText(){
+  if(!aiEditMode){
+    alert("当前为只读模式。请先点击“编辑”，再进行粘贴。");
+    return;
+  }
+  if(!restoreAiSelection()){
+    alert("请先在AI辅助正文中选择或定位需要粘贴的位置。");
+    return;
+  }
+
+  try{
+    const text=await navigator.clipboard.readText();
+    if(!text){
+      alert("剪贴板中没有可粘贴的文字。");
+      return;
+    }
+    insertAiPlainText(text);
+  }catch(error){
+    console.warn("clipboard read failed",error);
+    alert("浏览器未允许直接读取剪贴板。请在编辑模式下使用 Ctrl+V；系统会自动按纯文本粘贴。");
+  }
+}
+
 function aiSelectionInsideEditor(sel=window.getSelection()){
   const editor=$("#aiEditor");
   if(!editor||!sel||!sel.rangeCount||sel.isCollapsed) return false;
@@ -1721,8 +1856,21 @@ function updateAiSelectionToolbar(){
   bar.style.left=Math.round(left)+"px";
   bar.style.top=Math.round(top)+"px";
 }
-function runAiFloatingAction(action){
+async function runAiFloatingAction(action){
+  if(action==="copy"){
+    await copyAiSelection();
+    hideAiSelectionToolbar();
+    return;
+  }
+  if(action==="paste"){
+    await pasteAiPlainText();
+    hideAiSelectionToolbar();
+    return;
+  }
+
+  if(!aiEditMode) return;
   if(!restoreAiSelection()) return;
+
   switch(action){
     case "bold": aiCommand("bold"); break;
     case "underline": aiCommand("underline"); break;
@@ -1734,6 +1882,7 @@ function runAiFloatingAction(action){
     case "outdent": changeAiIndent(-2); break;
     case "paint": armFormatPainter(); break;
   }
+
   if(action!=="paint"){
     rememberAiSelection();
     requestAnimationFrame(updateAiSelectionToolbar);
@@ -1867,6 +2016,7 @@ function focusAiEditor(){
   $("#aiEditor")?.focus({preventScroll:true});
 }
 function aiCommand(command,value=null){
+  if(!aiEditMode) return;
   // Toolbar clicks can move focus away from the selected text.
   const restored=restoreAiSelection();
   if(!restored) focusAiEditor();
@@ -1925,6 +2075,7 @@ function currentIndentEm(block){
   return px/font;
 }
 function changeAiIndent(deltaEm){
+  if(!aiEditMode) return;
   focusAiEditor();
   let block=aiBlockElement();
   if(block===$("#aiEditor")){
@@ -1973,6 +2124,7 @@ function applyAiFormat(format){
   markAiChanged();
 }
 function armFormatPainter(){
+  if(!aiEditMode) return;
   const sel=window.getSelection();
   if(!sel||!sel.rangeCount||sel.isCollapsed){
     alert("请先选中一段作为格式来源的文字，再点击格式刷。");
@@ -2259,6 +2411,9 @@ $$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>{
   if(aiSelectionInsideEditor()) rememberAiSelection();
   e.preventDefault();
 }));
+$("#aiEditToggle")?.addEventListener("click",()=>{
+  setAiEditMode(!aiEditMode);
+});
 $("#boldBtn").addEventListener("click",()=>aiCommand("bold"));
 $("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
 $("#heading1Btn").addEventListener("click",setAiHeading1);
@@ -2277,7 +2432,7 @@ $$("[data-ai-float-action]").forEach(btn=>{
   btn.addEventListener("click",e=>{
     e.preventDefault();
     e.stopPropagation();
-    runAiFloatingAction(btn.dataset.aiFloatAction);
+    void runAiFloatingAction(btn.dataset.aiFloatAction);
   });
 });
 
@@ -2329,6 +2484,7 @@ $("#aiEditor").addEventListener("touchend",e=>{
   if(aiTapNeedsCaret(e)) setTimeout(placeAiCaretAtEnd,30);
 });
 $("#aiEditor").addEventListener("keydown",e=>{
+  if(!aiEditMode) return;
   if(e.key!=="Enter") return;
 
   // Shift+Enter remains a soft line break.
@@ -2353,34 +2509,46 @@ $("#aiEditor").addEventListener("keyup",e=>{
   markAiChanged();
 });
 $("#aiEditor").addEventListener("input",()=>{
+  if(!aiEditMode) return;
   ensureAiEditableTail();
   scheduleAiTocRefresh();
   refreshAiSearchAfterEdit();
   markAiChanged();
 });
 $("#aiEditor").addEventListener("paste",async e=>{
+  e.preventDefault();
+
+  if(!aiEditMode){
+    alert("当前为只读模式。请先点击“编辑”，再进行粘贴。");
+    return;
+  }
+
   const items=[...(e.clipboardData?.items||[])];
   const imageItems=items.filter(item=>item.type?.startsWith("image/"));
-  if(!imageItems.length) return;
 
-  e.preventDefault();
-  const sel=window.getSelection();
-  const savedRange=sel&&sel.rangeCount?sel.getRangeAt(0).cloneRange():null;
+  if(imageItems.length){
+    const sel=window.getSelection();
+    const savedRange=sel&&sel.rangeCount?sel.getRangeAt(0).cloneRange():null;
 
-  for(const item of imageItems){
-    const blob=item.getAsFile();
-    if(!blob) continue;
-    const ext=(blob.type.split("/")[1]||"png").replace(/[^a-z0-9]/gi,"")||"png";
-    const file=new File([blob],"粘贴图片-"+Date.now()+"."+ext,{type:blob.type});
-    const uploaded=await uploadAiPastedImage(file);
-    if(!uploaded) continue;
+    for(const item of imageItems){
+      const blob=item.getAsFile();
+      if(!blob) continue;
+      const ext=(blob.type.split("/")[1]||"png").replace(/[^a-z0-9]/gi,"")||"png";
+      const file=new File([blob],"粘贴图片-"+Date.now()+"."+ext,{type:blob.type});
+      const uploaded=await uploadAiPastedImage(file);
+      if(!uploaded) continue;
 
-    if(savedRange&&sel){
-      sel.removeAllRanges();
-      sel.addRange(savedRange);
+      if(savedRange&&sel){
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      }
+      insertAiImageAtSelection(uploaded.url,uploaded.file.id,uploaded.file.file_name);
     }
-    insertAiImageAtSelection(uploaded.url,uploaded.file.id,uploaded.file.file_name);
+    return;
   }
+
+  const text=e.clipboardData?.getData("text/plain")||"";
+  if(text) insertAiPlainText(text);
 });
 $("#aiSearchInput")?.addEventListener("input",()=>{
   aiSearchIndex=0;

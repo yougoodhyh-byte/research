@@ -1695,3 +1695,48 @@ body.nav-open{overflow:hidden}
     top:calc(var(--ai-sidebar-toc-top,92px) + 115px) !important;
   }
 }
+
+/* Simplified top navigation: always-visible Home button */
+.header-home-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:64px;
+  height:38px;
+  padding:0 16px;
+  border:1px solid #d8e5f4;
+  border-radius:999px;
+  background:#eaf3ff;
+  color:#176bdc;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+  flex:0 0 auto;
+  transition:background .15s ease,border-color .15s ease,transform .12s ease;
+}
+.header-home-btn:hover{
+  background:#dcecff;
+  border-color:#b9d3f1;
+}
+.header-home-btn:active{transform:scale(.98)}
+@media(max-width:760px){
+  .header-home-btn{
+    min-width:54px;
+    height:34px;
+    padding:0 12px;
+    font-size:9.5pt;
+  }
+}
+@media(max-width:560px){
+  .topbar{gap:8px}
+  .header-home-btn{
+    min-width:48px;
+    height:32px;
+    padding:0 10px;
+    font-size:9pt;
+  }
+}
+
+/* Obsolete drawer/floating navigation is disabled */
+#menuToggle,#sideNav,#navBackdrop,#navHoverZone,#floatingHomeBtn{display:none !important}

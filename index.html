@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-paper-color1">
+  <link rel="stylesheet" href="./style.css?v=20261002-ai-readonly-edit2">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -140,7 +140,10 @@
 
         <div class="card ai-editor-card">
           <div class="card-head ai-card-head">
-            <div><h2>AI辅助</h2></div>
+            <div class="ai-title-line">
+              <h2>AI辅助</h2>
+              <button id="aiEditToggle" class="btn ai-edit-toggle" type="button" aria-pressed="false">编辑</button>
+            </div>
             <div class="ai-toolbar" role="toolbar" aria-label="AI辅助文本格式">
               <button id="boldBtn" class="ai-tool" type="button" title="加粗"><b>B</b><span>加粗</span></button>
               <button id="underlineBtn" class="ai-tool" type="button" title="下划线"><u>U</u><span>下划线</span></button>
@@ -162,19 +165,21 @@
             </div>
           </div>
           <div class="editor-wrap">
-            <div id="aiEditor" class="ai-editor" contenteditable="true"></div>
+            <div id="aiEditor" class="ai-editor" contenteditable="false" aria-readonly="true"></div>
             <div id="aiSaveState" class="save-state">已保存</div>
           </div>
-          <div id="aiSelectionToolbar" class="ai-selection-toolbar" role="toolbar" aria-label="选中文字格式" aria-hidden="true">
-            <button type="button" data-ai-float-action="bold" title="加粗"><b>B</b></button>
-            <button type="button" data-ai-float-action="underline" title="下划线"><u>U</u></button>
-            <button type="button" class="float-red" data-ai-float-action="red" title="标红">A</button>
-            <button type="button" data-ai-float-action="grow" title="放大">A＋</button>
-            <button type="button" data-ai-float-action="shrink" title="缩小">A－</button>
-            <button type="button" data-ai-float-action="h1" title="一级标题">H1</button>
-            <button type="button" data-ai-float-action="indent" title="增加缩进">→</button>
-            <button type="button" data-ai-float-action="outdent" title="减少缩进">←</button>
-            <button type="button" data-ai-float-action="paint" title="格式刷">刷</button>
+          <div id="aiSelectionToolbar" class="ai-selection-toolbar" role="toolbar" aria-label="选中文字操作" aria-hidden="true">
+            <button type="button" class="ai-float-text" data-ai-float-action="copy" title="复制">复制</button>
+            <button type="button" class="ai-float-text" data-ai-float-action="paste" title="粘贴为纯文本">粘贴</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="bold" title="加粗"><b>B</b></button>
+            <button type="button" data-ai-edit-only data-ai-float-action="underline" title="下划线"><u>U</u></button>
+            <button type="button" data-ai-edit-only class="float-red" data-ai-float-action="red" title="标红">A</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="grow" title="放大">A＋</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="shrink" title="缩小">A－</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="h1" title="一级标题">H1</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="indent" title="增加缩进">→</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="outdent" title="减少缩进">←</button>
+            <button type="button" data-ai-edit-only data-ai-float-action="paint" title="格式刷">刷</button>
           </div>
         </div>
       </div>
@@ -304,6 +309,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-paper-color1"></script>
+  <script src="./script.js?v=20261002-ai-readonly-edit2"></script>
 </body>
 </html>

@@ -2085,6 +2085,10 @@ document.addEventListener("change", async e=>{
     e.target.value="";
   }
 });
+$("#floatingHomeBtn")?.addEventListener("click",()=>{
+  showView("home");
+  window.scrollTo({top:0,behavior:"smooth"});
+});
 $("#homeSubmissionTemplateEntry")?.addEventListener("click",()=>{
   showView("templates");
   setTimeout(()=>window.scrollTo({top:0,behavior:"smooth"}),50);

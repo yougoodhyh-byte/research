@@ -1478,3 +1478,13 @@ body.nav-open{overflow:hidden}
     padding:0 !important;
   }
 }
+
+/* Submission templates: keep the two columns independent in height */
+#templates .two-col{
+  align-items:start;
+}
+#templates .two-col > .card{
+  align-self:start;
+  height:auto;
+  min-height:0;
+}

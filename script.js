@@ -93,6 +93,8 @@ let aiFormatPainter=null;
 let aiTocUpdating=false;
 let aiTocOpen=false;
 let aiSelectionRange=null;
+let aiSearchRanges=[];
+let aiSearchIndex=-1;
 let aiTocRefreshTimer=null;
 let aiEnterAfterHeading=false;
 let paperFormDraftId=null;
@@ -1734,6 +1736,122 @@ function runAiFloatingAction(action){
   }
 }
 
+function clearAiSearchHighlights(){
+  aiSearchRanges=[];
+  aiSearchIndex=-1;
+  try{
+    CSS.highlights?.delete("ai-search-all");
+    CSS.highlights?.delete("ai-search-current");
+  }catch{}
+  const count=$("#aiSearchCount");
+  if(count) count.textContent="0 / 0";
+}
+
+function collectAiSearchRanges(query){
+  const editor=$("#aiEditor");
+  const q=String(query||"").trim();
+  if(!editor||!q) return [];
+
+  const lowerQ=q.toLocaleLowerCase();
+  const ranges=[];
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,{
+    acceptNode(node){
+      const parent=node.parentElement;
+      if(!parent) return NodeFilter.FILTER_REJECT;
+      if(parent.closest(".ai-toc")) return NodeFilter.FILTER_REJECT;
+      if(!node.nodeValue?.trim()) return NodeFilter.FILTER_SKIP;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  let node;
+  while((node=walker.nextNode())){
+    const text=node.nodeValue||"";
+    const lower=text.toLocaleLowerCase();
+    let from=0;
+    while(from<=lower.length-lowerQ.length){
+      const pos=lower.indexOf(lowerQ,from);
+      if(pos<0) break;
+      const range=document.createRange();
+      range.setStart(node,pos);
+      range.setEnd(node,pos+q.length);
+      ranges.push(range);
+      from=pos+Math.max(1,q.length);
+    }
+  }
+  return ranges;
+}
+
+function renderAiSearchHighlights(){
+  const input=$("#aiSearchInput");
+  const query=input?.value||"";
+  if(!query.trim()){
+    clearAiSearchHighlights();
+    return;
+  }
+
+  aiSearchRanges=collectAiSearchRanges(query);
+  if(!aiSearchRanges.length){
+    aiSearchIndex=-1;
+    try{
+      CSS.highlights?.delete("ai-search-all");
+      CSS.highlights?.delete("ai-search-current");
+    }catch{}
+    const count=$("#aiSearchCount");
+    if(count) count.textContent="0 / 0";
+    return;
+  }
+
+  if(aiSearchIndex<0||aiSearchIndex>=aiSearchRanges.length) aiSearchIndex=0;
+
+  try{
+    if(window.Highlight&&CSS.highlights){
+      CSS.highlights.set("ai-search-all",new Highlight(...aiSearchRanges));
+      CSS.highlights.set("ai-search-current",new Highlight(aiSearchRanges[aiSearchIndex]));
+    }
+  }catch{}
+
+  const count=$("#aiSearchCount");
+  if(count) count.textContent=(aiSearchIndex+1)+" / "+aiSearchRanges.length;
+}
+
+function goToAiSearchMatch(delta=1){
+  const input=$("#aiSearchInput");
+  if(!input?.value.trim()){
+    input?.focus();
+    return;
+  }
+
+  renderAiSearchHighlights();
+  if(!aiSearchRanges.length) return;
+
+  aiSearchIndex=(aiSearchIndex+delta+aiSearchRanges.length)%aiSearchRanges.length;
+
+  try{
+    if(window.Highlight&&CSS.highlights){
+      CSS.highlights.set("ai-search-current",new Highlight(aiSearchRanges[aiSearchIndex]));
+    }
+  }catch{}
+
+  const range=aiSearchRanges[aiSearchIndex];
+  const count=$("#aiSearchCount");
+  if(count) count.textContent=(aiSearchIndex+1)+" / "+aiSearchRanges.length;
+
+  const node=range.startContainer.parentElement;
+  node?.scrollIntoView({behavior:"smooth",block:"center"});
+
+  // Keep search input focused so Enter can continue navigating.
+  input.focus({preventScroll:true});
+}
+
+function refreshAiSearchAfterEdit(){
+  const input=$("#aiSearchInput");
+  if(!input?.value.trim()) return;
+  const previous=aiSearchIndex;
+  aiSearchIndex=Math.max(0,previous);
+  renderAiSearchHighlights();
+}
+
 function markAiChanged(){
   $("#aiSaveState").textContent=navigator.onLine?"待保存":"离线草稿";
   clearTimeout(saveTimer);
@@ -2231,6 +2349,7 @@ $("#aiEditor").addEventListener("keyup",e=>{
 $("#aiEditor").addEventListener("input",()=>{
   ensureAiEditableTail();
   scheduleAiTocRefresh();
+  refreshAiSearchAfterEdit();
   markAiChanged();
 });
 $("#aiEditor").addEventListener("paste",async e=>{
@@ -2257,6 +2376,29 @@ $("#aiEditor").addEventListener("paste",async e=>{
     insertAiImageAtSelection(uploaded.url,uploaded.file.id,uploaded.file.file_name);
   }
 });
+$("#aiSearchInput")?.addEventListener("input",()=>{
+  aiSearchIndex=0;
+  renderAiSearchHighlights();
+});
+$("#aiSearchInput")?.addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    goToAiSearchMatch(e.shiftKey?-1:1);
+  }else if(e.key==="Escape"){
+    e.preventDefault();
+    $("#aiSearchInput").value="";
+    clearAiSearchHighlights();
+  }
+});
+$("#aiSearchPrev")?.addEventListener("click",()=>goToAiSearchMatch(-1));
+$("#aiSearchNext")?.addEventListener("click",()=>goToAiSearchMatch(1));
+$("#aiSearchClear")?.addEventListener("click",()=>{
+  const input=$("#aiSearchInput");
+  if(input) input.value="";
+  clearAiSearchHighlights();
+  input?.focus();
+});
+
 $("#importLegacyBtn").addEventListener("click",importLegacy);
 $("#syncOfflineDraftBtn").addEventListener("click",syncOfflineDraft);
 $("#keepOfflineDraftBtn").addEventListener("click",()=>{

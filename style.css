@@ -1488,3 +1488,32 @@ body.nav-open{overflow:hidden}
   height:auto;
   min-height:0;
 }
+
+/* AI editor: all entered text uses full justification */
+.ai-editor{
+  text-align:justify;
+  text-justify:inter-ideograph;
+}
+.ai-editor > :not(.ai-toc):not(.ai-image-block),
+.ai-editor p,
+.ai-editor div:not(.ai-toc):not(.ai-toc-items):not(.ai-image-block),
+.ai-editor li,
+.ai-editor blockquote,
+.ai-editor h1,
+.ai-editor h2,
+.ai-editor h3,
+.ai-editor h4,
+.ai-editor h5,
+.ai-editor h6{
+  text-align:justify !important;
+  text-justify:inter-ideograph;
+}
+
+/* Reliable underline rendering inside AI editor */
+.ai-editor u,
+.ai-editor [style*="text-decoration: underline"],
+.ai-editor [style*="text-decoration-line: underline"]{
+  text-decoration-line:underline !important;
+  text-decoration-style:solid !important;
+  text-underline-offset:.12em;
+}

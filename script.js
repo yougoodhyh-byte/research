@@ -1381,45 +1381,55 @@ async function downloadFile(f){
 
 
 function aiEditorEl(){ return $("#aiEditor"); }
+function cleanLegacyAiTailBlocks(editor){
+  if(!editor) return;
+  const legacy=[...editor.querySelectorAll(":scope > .ai-editor-tail")];
+
+  legacy.forEach(block=>{
+    const text=(block.textContent||"").replace(/\u200B/g,"").trim();
+    const hasRich=!!block.querySelector("img,video,audio,table");
+
+    // The old implementation created one full-height .ai-editor-tail per Enter.
+    // Empty copies are layout artifacts, not real paragraphs, so remove them.
+    if(!text&&!hasRich){
+      block.remove();
+      return;
+    }
+
+    // Keep meaningful content, but turn it into an ordinary paragraph block.
+    block.classList.remove("ai-editor-tail");
+    ["contenteditable","role","aria-label","aria-multiline","inputmode","enterkeyhint","spellcheck","tabindex"]
+      .forEach(attr=>block.removeAttribute(attr));
+  });
+}
 function ensureAiEditableTail(){
   const editor=aiEditorEl();
   if(!editor) return null;
 
-  let tail=editor.querySelector(":scope > .ai-editor-tail");
-  if(!tail){
-    tail=document.createElement("div");
-    tail.className="ai-editor-tail";
-    tail.innerHTML="<br>";
-    editor.appendChild(tail);
-  }else if(!tail.innerHTML.trim()){
-    tail.innerHTML="<br>";
+  cleanLegacyAiTailBlocks(editor);
+
+  const content=[...editor.children].filter(el=>!el.classList.contains("ai-toc"));
+  let last=content.at(-1)||null;
+
+  // Keep one ordinary editable line available after headings/images or in an empty editor.
+  if(!last || /^H[1-6]$/.test(last.tagName) || last.classList.contains("ai-image-block")){
+    last=document.createElement("div");
+    last.innerHTML="<br>";
+    editor.appendChild(last);
   }
 
-  // Make the body a real editing host. This is more reliable on mobile Edge/Chrome
-  // than relying only on inherited contenteditable from the outer editor.
-  tail.setAttribute("contenteditable","true");
-  tail.setAttribute("role","textbox");
-  tail.setAttribute("aria-label","AI辅助正文输入区域");
-  tail.setAttribute("aria-multiline","true");
-  tail.setAttribute("inputmode","text");
-  tail.setAttribute("enterkeyhint","enter");
-  tail.setAttribute("spellcheck","true");
-  tail.tabIndex=0;
-
-  // Keep the body at the end, so the large blank area always belongs to it.
-  if(editor.lastElementChild!==tail) editor.appendChild(tail);
-  return tail;
+  return last;
 }
 function placeAiCaretAtEnd(){
   const editor=aiEditorEl();
   if(!editor) return;
-  const tail=ensureAiEditableTail();
-  if(!tail) return;
+  const last=ensureAiEditableTail();
+  if(!last) return;
 
-  try{ tail.focus({preventScroll:true}); }catch{ tail.focus(); }
+  try{ editor.focus({preventScroll:true}); }catch{ editor.focus(); }
 
   const range=document.createRange();
-  range.selectNodeContents(tail);
+  range.selectNodeContents(last);
   range.collapse(false);
 
   const sel=window.getSelection();
@@ -1432,7 +1442,7 @@ function aiHasMeaningfulBodyContent(){
   return [...editor.childNodes].some(node=>{
     if(node.nodeType===Node.ELEMENT_NODE){
       const el=node;
-      if(el.classList.contains("ai-toc")||el.classList.contains("ai-editor-tail")) return false;
+      if(el.classList.contains("ai-toc")) return false;
       if(el.matches(".ai-image-block")) return true;
       return !!el.textContent?.trim();
     }
@@ -1638,8 +1648,10 @@ function sanitizeAiHtmlForSave(){
   clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{
     img.removeAttribute("src");
   });
-  clone.querySelectorAll(".ai-editor-tail").forEach(tail=>{
-    ["contenteditable","role","aria-label","aria-multiline","inputmode","enterkeyhint","spellcheck","tabindex"].forEach(attr=>tail.removeAttribute(attr));
+  clone.querySelectorAll(".ai-editor-tail").forEach(block=>{
+    block.classList.remove("ai-editor-tail");
+    ["contenteditable","role","aria-label","aria-multiline","inputmode","enterkeyhint","spellcheck","tabindex"]
+      .forEach(attr=>block.removeAttribute(attr));
   });
   return clone.innerHTML;
 }
@@ -2162,13 +2174,13 @@ function aiTapNeedsCaret(e){
   const editor=$("#aiEditor");
   if(!editor) return false;
   if(e.target===editor) return true;
-  const tail=e.target.closest?.(".ai-editor-tail");
-  if(!tail) return false;
 
-  // When the starter area is still empty, mobile browsers often fail to create
-  // a native caret after the non-editable TOC. Force a caret only in that case.
-  const hasText=!!tail.textContent?.replace(/\u200B/g,"").trim();
-  const hasRich=!!tail.querySelector("img,video,audio,table");
+  const content=[...editor.children].filter(el=>!el.classList.contains("ai-toc"));
+  const last=content.at(-1);
+  if(!last||e.target!==last) return false;
+
+  const hasText=!!last.textContent?.replace(/\u200B/g,"").trim();
+  const hasRich=!!last.querySelector("img,video,audio,table");
   return !hasText&&!hasRich;
 }
 $("#aiEditor").addEventListener("pointerdown",e=>{

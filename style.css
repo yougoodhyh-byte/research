@@ -1347,6 +1347,9 @@ body.nav-open{overflow:hidden}
 .s5{
   background:#f2edff;
 }
+.s6{
+  background:#eef2f7;
+}
 
 /* Allow the Home review-template entry to open the panel on all screen sizes */
 .review-template-panel.template-open .review-template-detail{

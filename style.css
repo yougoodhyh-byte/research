@@ -1562,3 +1562,19 @@ body.nav-open{overflow:hidden}
     grid-template-columns:1fr;
   }
 }
+
+/* Keep AI table of contents visible while scrolling */
+#templates .ai-toc{
+  position:sticky;
+  top:var(--ai-toc-sticky-top, 210px);
+  z-index:7;
+  background:rgba(248,251,255,.97);
+  box-shadow:0 8px 18px rgba(31,49,78,.06);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+@media(max-width:900px){
+  #templates .ai-toc{
+    top:var(--ai-toc-sticky-top, 250px);
+  }
+}

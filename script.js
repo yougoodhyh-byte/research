@@ -515,15 +515,32 @@ function renderHeaderDate(){
   if(el) el.textContent=formatHeaderDate(new Date());
 }
 function updateAiStickyTocOffset(){
-  const root=document.documentElement;
-  const topbar=document.querySelector(".topbar");
-  if(!root) return;
+  const toc=$("#aiTocSidebar");
+  const leftCard=$("#templates .template-files-card");
+  const templates=$("#templates");
+  const topbar=$(".topbar");
+  if(!toc||!leftCard||!templates||!templates.classList.contains("active")) return;
 
-  const topbarHeight=Math.max(
-    topbar?.getBoundingClientRect().height||0,
-    window.innerWidth<=1000?70:78
-  );
-  root.style.setProperty("--ai-sidebar-toc-top",Math.ceil(topbarHeight+14)+"px");
+  // On narrow screens the layout is stacked, so the TOC should return to normal flow.
+  if(window.innerWidth<=900){
+    toc.style.removeProperty("left");
+    toc.style.removeProperty("top");
+    toc.style.removeProperty("width");
+    return;
+  }
+
+  const cardRect=leftCard.getBoundingClientRect();
+  const topbarBottom=topbar?.getBoundingClientRect().bottom||78;
+
+  // Place a compact fixed directory in the right side of the left column,
+  // just beneath the template card's initial footprint.
+  const width=Math.max(190,Math.min(280,cardRect.width*0.36));
+  const left=Math.max(12,cardRect.right-width-8);
+  const preferredTop=Math.max(topbarBottom+18,Math.min(window.innerHeight-260,cardRect.bottom+10));
+
+  toc.style.left=Math.round(left)+"px";
+  toc.style.top=Math.round(preferredTop)+"px";
+  toc.style.width=Math.round(width)+"px";
 }
 
 function scheduleHeaderDateRefresh(){
@@ -591,7 +608,9 @@ function showView(id){
   const label=$("#currentSectionLabel");
   if(label) label.textContent=VIEW_LABELS[id]||"科研工作台";
   closeSideNav();
-  if(id==="templates") requestAnimationFrame(updateAiStickyTocOffset);
+  if(id==="templates"){
+    requestAnimationFrame(()=>requestAnimationFrame(updateAiStickyTocOffset));
+  }
 }
 function initNav(){
   $$("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));

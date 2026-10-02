@@ -93,6 +93,8 @@ let aiFormatPainter=null;
 let aiTocUpdating=false;
 let aiTocOpen=false;
 let aiSelectionRange=null;
+let aiTocRefreshTimer=null;
+let aiEnterAfterHeading=false;
 let paperFormDraftId=null;
 let serviceFormDraftId=null;
 let paperFormInitial=null;
@@ -1480,10 +1482,64 @@ function ensureAiToc(){
     aiTocUpdating=false;
   }
 }
+
+function scheduleAiTocRefresh(delay=140){
+  clearTimeout(aiTocRefreshTimer);
+  aiTocRefreshTimer=setTimeout(()=>{
+    const editor=$("#aiEditor");
+    if(!editor) return;
+
+    // Preserve a live selection when rebuilding only the non-editable TOC.
+    const sel=window.getSelection();
+    let saved=null;
+    if(sel&&sel.rangeCount){
+      const range=sel.getRangeAt(0);
+      const node=range.commonAncestorContainer;
+      const host=node.nodeType===Node.ELEMENT_NODE?node:node.parentNode;
+      if(editor.contains(host)) saved=range.cloneRange();
+    }
+
+    ensureAiToc();
+
+    if(saved&&document.activeElement){
+      try{
+        const s=window.getSelection();
+        s.removeAllRanges();
+        s.addRange(saved);
+      }catch{}
+    }
+  },delay);
+}
+function currentAiEditingBlock(){
+  const el=selectionElement();
+  if(!el) return null;
+  return el.closest("h1,h2,h3,h4,h5,h6,p,div,li,blockquote");
+}
+function normalizeAiBodyTypingState(){
+  const block=currentAiEditingBlock();
+  if(block&&block!==$("#aiEditor")&&!block.classList.contains("ai-editor-tail")){
+    block.style.marginLeft="";
+  }
+
+  // Word-like rule: after a heading, Enter returns to normal body text.
+  try{ document.execCommand("formatBlock",false,"div"); }catch{}
+  try{ document.execCommand("removeFormat",false,null); }catch{}
+  try{ document.execCommand("fontSize",false,"3"); }catch{}
+  try{ document.execCommand("foreColor",false,"#17233a"); }catch{}
+
+  // Ensure heading-only styling does not remain active.
+  try{
+    if(document.queryCommandState("bold")) document.execCommand("bold",false,null);
+  }catch{}
+  try{
+    if(document.queryCommandState("underline")) document.execCommand("underline",false,null);
+  }catch{}
+}
+
 function setAiHeading1(){
   focusAiEditor();
   document.execCommand("formatBlock",false,"h1");
-  ensureAiToc();
+  scheduleAiTocRefresh(0);
   markAiChanged();
 }
 async function uploadAiPastedImage(file){
@@ -2135,9 +2191,33 @@ $("#aiEditor").addEventListener("click",e=>{
 $("#aiEditor").addEventListener("touchend",e=>{
   if(aiTapNeedsCaret(e)) setTimeout(placeAiCaretAtEnd,30);
 });
-$("#aiEditor").addEventListener("input",()=>{
-  ensureAiToc();
+$("#aiEditor").addEventListener("keydown",e=>{
+  if(e.key!=="Enter") return;
+
+  // Shift+Enter remains a soft line break.
+  if(e.shiftKey) return;
+
+  // Use a consistent block separator for normal paragraphs.
+  try{ document.execCommand("defaultParagraphSeparator",false,"div"); }catch{}
+
+  const block=currentAiEditingBlock();
+  aiEnterAfterHeading=!!block&&/^H[1-6]$/.test(block.tagName);
+});
+$("#aiEditor").addEventListener("keyup",e=>{
+  if(e.key!=="Enter"||e.shiftKey) return;
+
+  if(aiEnterAfterHeading){
+    normalizeAiBodyTypingState();
+    aiEnterAfterHeading=false;
+  }
+
   ensureAiEditableTail();
+  scheduleAiTocRefresh(40);
+  markAiChanged();
+});
+$("#aiEditor").addEventListener("input",()=>{
+  ensureAiEditableTail();
+  scheduleAiTocRefresh();
   markAiChanged();
 });
 $("#aiEditor").addEventListener("paste",async e=>{

@@ -1439,3 +1439,16 @@ body.nav-open{overflow:hidden}
 @media(max-width:560px){
   .session-mode-badge{display:none}
 }
+
+/* Stable AI paragraph formatting after Enter */
+.ai-editor-tail > div,
+.ai-editor-tail > p{
+  margin-top:0 !important;
+  margin-bottom:0 !important;
+  line-height:1.5 !important;
+  min-height:1.5em;
+}
+.ai-editor-tail > div:empty,
+.ai-editor-tail > p:empty{
+  min-height:1.5em;
+}

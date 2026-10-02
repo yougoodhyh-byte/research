@@ -1542,3 +1542,23 @@ body.nav-open{overflow:hidden}
 .ai-editor i{
   font-family:"Times New Roman","宋体","SimSun",serif !important;
 }
+
+/* Submission templates layout: narrower file panel, wider AI editor */
+#templates .two-col{
+  grid-template-columns:minmax(320px,38fr) minmax(0,62fr);
+  align-items:start;
+  gap:18px;
+}
+#templates .two-col > .card{
+  min-width:0;
+}
+@media(max-width:1100px){
+  #templates .two-col{
+    grid-template-columns:minmax(280px,36fr) minmax(0,64fr);
+  }
+}
+@media(max-width:900px){
+  #templates .two-col{
+    grid-template-columns:1fr;
+  }
+}

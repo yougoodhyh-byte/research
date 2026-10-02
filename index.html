@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-home-archive-entry1">
+  <link rel="stylesheet" href="./style.css?v=20261002-ai-toc-left1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -151,14 +151,17 @@
 
     <section id="templates" class="view">
       <div class="two-col">
-        <div class="card">
+        <div class="card template-files-card">
           <div class="card-head">
             <div><h2>投稿模板</h2></div>
             <label class="btn primary">＋ 上传文件<input id="templateUpload" type="file" hidden multiple></label>
           </div>
           <div class="file-list" id="templateList"></div>
         </div>
-        <div class="card">
+
+        <div id="aiTocSidebar" class="ai-toc ai-toc-sidebar" aria-label="AI辅助目录"></div>
+
+        <div class="card ai-editor-card">
           <div class="card-head ai-card-head">
             <div><h2>AI辅助</h2></div>
             <div class="ai-toolbar" role="toolbar" aria-label="AI辅助文本格式">
@@ -312,6 +315,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-ai-toc-sticky1"></script>
+  <script src="./script.js?v=20261002-ai-toc-left1"></script>
 </body>
 </html>

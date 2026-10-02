@@ -1688,3 +1688,10 @@ body.nav-open{overflow:hidden}
     overflow:auto;
   }
 }
+
+/* Lower fixed AI TOC so it does not cover the upload button */
+@media(min-width:901px){
+  #templates #aiTocSidebar.ai-toc{
+    top:calc(var(--ai-sidebar-toc-top,92px) + 115px) !important;
+  }
+}

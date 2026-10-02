@@ -602,66 +602,23 @@ function scheduleNavClose(delay=220){
 }
 function showView(id){
   $$(".view").forEach(v=>v.classList.remove("active"));
-  $$("#nav button").forEach(b=>b.classList.remove("active"));
   $("#"+id)?.classList.add("active");
-  $(`#nav button[data-view="${id}"]`)?.classList.add("active");
   const label=$("#currentSectionLabel");
   if(label) label.textContent=VIEW_LABELS[id]||"科研工作台";
-  closeSideNav();
   if(id==="templates"){
     requestAnimationFrame(()=>requestAnimationFrame(updateAiStickyTocOffset));
   }
 }
 function initNav(){
-  $$("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
   $$("[data-jump]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.jump)));
   $$("[data-close]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.close).classList.add("hidden")));
-  $("#menuToggle")?.addEventListener("click",()=>{
-    const open=$("#sideNav")?.classList.contains("open");
-    if(open) closeSideNav(); else openSideNav();
+  $("#headerHomeBtn")?.addEventListener("click",()=>{
+    showView("home");
+    window.scrollTo({top:0,behavior:"smooth"});
   });
-  $("#menuClose")?.addEventListener("click",closeSideNav);
-  $("#navBackdrop")?.addEventListener("click",closeSideNav);
-
-  const toggle=$("#menuToggle"), side=$("#sideNav"), zone=$("#navHoverZone");
-
-  // Mouse over the button or the thin left edge opens the drawer immediately.
-  [toggle,zone].filter(Boolean).forEach(el=>{
-    el.addEventListener("pointerenter",e=>{
-      if(!isRealMouseEvent(e)) return;
-      cancelNavClose();
-      openSideNav();
-    });
-    el.addEventListener("pointerleave",e=>{
-      if(!isRealMouseEvent(e)) return;
-      scheduleNavClose();
-    });
-  });
-
-  // Keep it open while the mouse is inside the drawer; hide after leaving it.
-  side?.addEventListener("pointerenter",e=>{
-    if(!isRealMouseEvent(e)) return;
-    cancelNavClose();
-  });
-  side?.addEventListener("pointerleave",e=>{
-    if(!isRealMouseEvent(e)) return;
-    scheduleNavClose(180);
-  });
-
-  // Robust fallback: any real mouse movement within 34 px of the left edge opens it.
-  document.addEventListener("pointermove",e=>{
-    if(!isRealMouseEvent(e)) return;
-    if(e.clientX<=34){
-      cancelNavClose();
-      openSideNav();
-    }
-  },{passive:true});
 
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){
-      closeSideNav();
-      disarmFormatPainter();
-    }
+    if(e.key==="Escape") disarmFormatPainter();
   });
 }
 async function init(){
@@ -2128,10 +2085,6 @@ document.addEventListener("change", async e=>{
 $("#homeSubmissionTemplateEntry")?.addEventListener("click",()=>{
   showView("templates");
   setTimeout(()=>window.scrollTo({top:0,behavior:"smooth"}),50);
-});
-$("#floatingHomeBtn")?.addEventListener("click",()=>{
-  showView("home");
-  window.scrollTo({top:0,behavior:"smooth"});
 });
 $("#addServiceBtn").addEventListener("click",()=>openService());
 $("#paperStatus").addEventListener("change",()=>{

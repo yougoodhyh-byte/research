@@ -1753,8 +1753,14 @@ function focusAiEditor(){
   $("#aiEditor")?.focus({preventScroll:true});
 }
 function aiCommand(command,value=null){
-  focusAiEditor();
+  // Toolbar clicks can move focus away from the selected text.
+  const restored=restoreAiSelection();
+  if(!restored) focusAiEditor();
+
   document.execCommand(command,false,value);
+
+  // Preserve selection for consecutive formatting actions.
+  rememberAiSelection();
   markAiChanged();
 }
 function currentAiFontLevel(){
@@ -2135,7 +2141,10 @@ $("#reviewTemplateUpload").addEventListener("change",async e=>{
   e.target.value="";
 });
 $("#replaceInput").addEventListener("change",async e=>{const f=e.target.files?.[0];if(f&&replaceContext)await uploadFile(f,replaceContext.kind,replaceContext.review_service_id,replaceContext);replaceContext=null;});
-$$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>e.preventDefault()));
+$$(".ai-tool").forEach(btn=>btn.addEventListener("mousedown",e=>{
+  if(aiSelectionInsideEditor()) rememberAiSelection();
+  e.preventDefault();
+}));
 $("#boldBtn").addEventListener("click",()=>aiCommand("bold"));
 $("#underlineBtn").addEventListener("click",()=>aiCommand("underline"));
 $("#heading1Btn").addEventListener("click",setAiHeading1);
@@ -2160,12 +2169,14 @@ $$("[data-ai-float-action]").forEach(btn=>{
 
 $("#aiEditor").addEventListener("mouseup",()=>{
   setTimeout(()=>{
+    if(aiSelectionInsideEditor()) rememberAiSelection();
     tryApplyFormatPainter();
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },0);
 });
 $("#aiEditor").addEventListener("touchend",()=>{
   setTimeout(()=>{
+    if(aiSelectionInsideEditor()) rememberAiSelection();
     tryApplyFormatPainter();
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },80);

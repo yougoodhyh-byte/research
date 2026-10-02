@@ -604,7 +604,10 @@ function showView(id){
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#"+id)?.classList.add("active");
   const label=$("#currentSectionLabel");
-  if(label) label.textContent=VIEW_LABELS[id]||"科研工作台";
+  if(label){
+    label.textContent=VIEW_LABELS[id]||"科研工作台";
+    label.classList.toggle("hidden",id==="home");
+  }
   if(id==="templates"){
     requestAnimationFrame(()=>requestAnimationFrame(updateAiStickyTocOffset));
   }

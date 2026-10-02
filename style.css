@@ -1517,3 +1517,28 @@ body.nav-open{overflow:hidden}
   text-decoration-style:solid !important;
   text-underline-offset:.12em;
 }
+
+/* AI editor typography: English uses Times New Roman, Chinese falls back to SimSun */
+.ai-editor{
+  font-family:"Times New Roman","宋体","SimSun",serif !important;
+}
+.ai-editor > :not(.ai-toc):not(.ai-image-block),
+.ai-editor p,
+.ai-editor div:not(.ai-toc):not(.ai-toc-items):not(.ai-image-block),
+.ai-editor li,
+.ai-editor blockquote,
+.ai-editor h1,
+.ai-editor h2,
+.ai-editor h3,
+.ai-editor h4,
+.ai-editor h5,
+.ai-editor h6,
+.ai-editor span,
+.ai-editor font,
+.ai-editor u,
+.ai-editor b,
+.ai-editor strong,
+.ai-editor em,
+.ai-editor i{
+  font-family:"Times New Roman","宋体","SimSun",serif !important;
+}

@@ -1452,3 +1452,29 @@ body.nav-open{overflow:hidden}
 .ai-editor-tail > p:empty{
   min-height:1.5em;
 }
+
+/* AI editor structure fix: Enter creates normal lines, never full-height tail blocks */
+.ai-editor{
+  min-height:420px !important;
+  padding-bottom:120px;
+}
+.ai-editor > .ai-editor-tail{
+  min-height:1.5em !important;
+  height:auto !important;
+  padding:0 !important;
+  margin:0 !important;
+  line-height:1.5 !important;
+}
+@media(max-width:600px){
+  .ai-editor{
+    min-height:420px !important;
+    padding-bottom:160px;
+  }
+  .ai-editor > .ai-editor-tail,
+  .ai-editor > .ai-editor-tail:not(:empty),
+  .ai-toc + .ai-editor-tail,
+  .ai-editor-tail:has(br:only-child){
+    min-height:1.5em !important;
+    padding:0 !important;
+  }
+}

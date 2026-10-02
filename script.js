@@ -516,17 +516,14 @@ function renderHeaderDate(){
 }
 function updateAiStickyTocOffset(){
   const root=document.documentElement;
-  const aiHead=document.querySelector("#templates .ai-card-head");
   const topbar=document.querySelector(".topbar");
-  if(!root||!aiHead) return;
+  if(!root) return;
 
   const topbarHeight=Math.max(
-    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-height"))||0,
     topbar?.getBoundingClientRect().height||0,
     window.innerWidth<=1000?70:78
   );
-  const aiHeadHeight=aiHead.getBoundingClientRect().height||0;
-  root.style.setProperty("--ai-toc-sticky-top",Math.ceil(topbarHeight+aiHeadHeight+8)+"px");
+  root.style.setProperty("--ai-sidebar-toc-top",Math.ceil(topbarHeight+14)+"px");
 }
 
 function scheduleHeaderDateRefresh(){
@@ -1468,18 +1465,16 @@ function aiHasMeaningfulBodyContent(){
 }
 function ensureAiToc(){
   const editor=aiEditorEl();
-  if(!editor||aiTocUpdating) return;
+  const toc=$("#aiTocSidebar");
+  if(!editor||!toc||aiTocUpdating) return;
+
   aiTocUpdating=true;
   try{
-    let toc=editor.querySelector(":scope > .ai-toc");
-    if(!toc){
-      toc=document.createElement("div");
-      toc.className="ai-toc";
-      toc.setAttribute("contenteditable","false");
-      editor.insertBefore(toc,editor.firstChild);
-    }
+    // Older saved notes contained the TOC inside the editable document.
+    // Remove those legacy copies so the right editor contains only real content.
+    editor.querySelectorAll(".ai-toc").forEach(oldToc=>oldToc.remove());
 
-    const headings=[...editor.querySelectorAll("h1")].filter(h=>!h.closest(".ai-toc"));
+    const headings=[...editor.querySelectorAll("h1")];
     headings.forEach((heading,index)=>{
       const number=String(index+1);
       heading.id="ai-heading-"+number;
@@ -1504,6 +1499,7 @@ function ensureAiToc(){
         '<span class="ai-toc-chevron" aria-hidden="true">⌄</span>'+
       '</button>'+
       '<div class="ai-toc-items">'+items+'</div>';
+
     ensureAiEditableTail();
   } finally {
     aiTocUpdating=false;
@@ -1658,10 +1654,8 @@ function sanitizeAiHtmlForSave(){
   if(!editor) return "";
   ensureAiToc();
   const clone=editor.cloneNode(true);
-  clone.querySelector(".ai-toc")?.classList.remove("open");
+  clone.querySelectorAll(".ai-toc").forEach(toc=>toc.remove());
   clone.querySelectorAll("h1[data-ai-heading-number]").forEach(h=>h.removeAttribute("data-ai-heading-number"));
-  const savedTocToggle=clone.querySelector("[data-ai-toc-toggle]");
-  if(savedTocToggle) savedTocToggle.setAttribute("aria-expanded","false");
   clone.querySelectorAll("img[data-ai-image-id]").forEach(img=>{
     img.removeAttribute("src");
   });

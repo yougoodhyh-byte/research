@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-floating-home-return1">
+  <link rel="stylesheet" href="./style.css?v=20261002-ai-search1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -152,6 +152,14 @@
               <button id="outdentBtn" class="ai-tool" type="button" title="减少缩进（每次2个字符）"><b>←</b><span>减少缩进</span></button>
               <button id="formatPainterBtn" class="ai-tool" type="button" title="格式刷"><b>刷</b><span>格式刷</span></button>
             </div>
+            <div class="ai-search-bar" role="search" aria-label="搜索AI辅助内容">
+              <span class="ai-search-icon" aria-hidden="true">⌕</span>
+              <input id="aiSearchInput" class="ai-search-input" type="search" placeholder="搜索AI辅助内容" autocomplete="off" spellcheck="false">
+              <span id="aiSearchCount" class="ai-search-count" aria-live="polite">0 / 0</span>
+              <button id="aiSearchPrev" class="ai-search-btn" type="button" title="上一个匹配" aria-label="上一个匹配">↑</button>
+              <button id="aiSearchNext" class="ai-search-btn" type="button" title="下一个匹配" aria-label="下一个匹配">↓</button>
+              <button id="aiSearchClear" class="ai-search-btn ai-search-clear" type="button" title="清除搜索" aria-label="清除搜索">×</button>
+            </div>
           </div>
           <div class="editor-wrap">
             <div id="aiEditor" class="ai-editor" contenteditable="true"></div>
@@ -292,6 +300,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-floating-home-return1"></script>
+  <script src="./script.js?v=20261002-ai-search1"></script>
 </body>
 </html>

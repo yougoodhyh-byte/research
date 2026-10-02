@@ -526,8 +526,10 @@ function updateAiStickyTocOffset(){
   const topbar=$(".topbar");
   if(!toc||!leftCard||!templates||!templates.classList.contains("active")) return;
 
-  // On narrow screens the layout is stacked, so the TOC should return to normal flow.
+  // On mobile the TOC remains fixed below the sticky top bar.
   if(window.innerWidth<=900){
+    const topbarBottom=topbar?.getBoundingClientRect().bottom||70;
+    document.documentElement.style.setProperty("--ai-mobile-toc-top",Math.ceil(topbarBottom+8)+"px");
     toc.style.removeProperty("left");
     toc.style.removeProperty("top");
     toc.style.removeProperty("width");

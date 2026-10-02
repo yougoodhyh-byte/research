@@ -1835,3 +1835,50 @@ body.nav-open{overflow:hidden}
 #paperDisplayColor{
   font-weight:500;
 }
+
+/* AI read-only / edit mode */
+.ai-title-line{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:0 0 auto;
+}
+.ai-edit-toggle{
+  min-height:32px;
+  padding:5px 12px;
+  border-radius:999px;
+  color:#176bdc;
+  border-color:#c9dbf0;
+  background:#f5f9ff;
+  font-size:9pt;
+  font-weight:700;
+}
+.ai-edit-toggle.primary{
+  background:#2878e8;
+  border-color:#2878e8;
+  color:#fff;
+}
+.ai-editor[contenteditable="false"]{
+  cursor:text;
+  background:#fcfdff;
+}
+.ai-editor[contenteditable="false"]:focus{
+  outline:none;
+}
+.ai-toolbar .ai-tool:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+  background:#f7f8fa;
+  color:#7f8a9a;
+  border-color:#e3e7ed;
+  transform:none;
+}
+.ai-editor-card:not(.editing) .ai-selection-toolbar [data-ai-edit-only]{
+  display:none;
+}
+.ai-selection-toolbar .ai-float-text{
+  min-width:auto;
+  padding:0 10px;
+  font-weight:600;
+  font-size:9pt;
+}

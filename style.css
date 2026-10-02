@@ -1581,3 +1581,64 @@ body.nav-open{overflow:hidden}
     top:var(--ai-toc-sticky-top, 250px);
   }
 }
+
+/* AI TOC lives in the left template column */
+#templates .template-files-card{
+  grid-column:1;
+  grid-row:1;
+}
+#templates .ai-toc-sidebar{
+  grid-column:1;
+  grid-row:2;
+  align-self:start;
+  position:sticky;
+  top:var(--ai-sidebar-toc-top,92px);
+  z-index:7;
+  margin:0 0 16px;
+  width:100%;
+  background:rgba(248,251,255,.97);
+  box-shadow:0 8px 18px rgba(31,49,78,.06);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+#templates .ai-editor-card{
+  grid-column:2;
+  grid-row:1 / span 2;
+  align-self:start;
+  min-width:0;
+}
+
+/* The editable document no longer contains its own TOC. */
+#templates .ai-editor > .ai-toc{
+  display:none !important;
+}
+
+@media(max-width:900px){
+  #templates .template-files-card,
+  #templates .ai-toc-sidebar,
+  #templates .ai-editor-card{
+    grid-column:1;
+    grid-row:auto;
+  }
+  #templates .ai-toc-sidebar{
+    position:relative;
+    top:auto;
+    margin-top:0;
+  }
+}
+
+/* Final TOC placement override */
+#templates .ai-editor .ai-toc{
+  position:static !important;
+  display:none !important;
+}
+#templates #aiTocSidebar.ai-toc{
+  position:sticky !important;
+  top:var(--ai-sidebar-toc-top,92px) !important;
+}
+@media(max-width:900px){
+  #templates #aiTocSidebar.ai-toc{
+    position:relative !important;
+    top:auto !important;
+  }
+}

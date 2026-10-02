@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>科研工作台</title>
-  <link rel="stylesheet" href="./style.css?v=20261002-ai-search1">
+  <link rel="stylesheet" href="./style.css?v=20261002-paper-color1">
 </head>
 <body>
   <div id="setupBanner" class="setup-banner hidden"></div>
@@ -247,6 +247,10 @@
           <option value="submitted">已投稿</option><option value="review">外审中</option><option value="revision">返修中</option>
           <option value="accepted">已录用</option><option value="published">已发表</option><option value="rejected">拒稿</option><option value="withdrawn">撤稿</option>
         </select></label>
+        <label>标题与期刊颜色<select id="paperDisplayColor">
+          <option value="black">黑色（默认）</option>
+          <option value="lavender">浅紫色</option>
+        </select></label>
         <label><span id="paperDateLabel">投稿日期</span><input id="paperDate" type="date"></label>
         <label id="paperDeadlineWrap" class="hidden">返修截止日期<input id="paperDeadline" type="date"></label>
         <label id="paperMonitorWrap" class="full monitor-field hidden">
@@ -300,6 +304,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="./config.js"></script>
-  <script src="./script.js?v=20261002-ai-search1"></script>
+  <script src="./script.js?v=20261002-paper-color1"></script>
 </body>
 </html>

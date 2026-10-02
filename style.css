@@ -1642,3 +1642,49 @@ body.nav-open{overflow:hidden}
     top:auto !important;
   }
 }
+
+/* Compact fixed AI TOC in the right side of the left blank area */
+#templates #aiTocSidebar.ai-toc{
+  position:fixed !important;
+  z-index:9;
+  margin:0 !important;
+  max-height:46vh;
+  overflow:auto;
+  border-radius:12px;
+  background:rgba(248,251,255,.92);
+  box-shadow:0 10px 28px rgba(31,49,78,.10);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+#templates #aiTocSidebar.ai-toc .ai-toc-toggle{
+  min-height:44px;
+  padding:9px 12px;
+}
+#templates #aiTocSidebar.ai-toc .ai-toc-items{
+  padding-left:12px;
+  padding-right:12px;
+}
+#templates #aiTocSidebar.ai-toc.open .ai-toc-items{
+  padding:0 12px 12px;
+  max-height:36vh;
+  overflow:auto;
+}
+#templates #aiTocSidebar .ai-toc-link{
+  font-size:9.5pt;
+  line-height:1.35;
+}
+@media(max-width:900px){
+  #templates #aiTocSidebar.ai-toc{
+    position:relative !important;
+    left:auto !important;
+    top:auto !important;
+    width:auto !important;
+    max-height:none;
+    overflow:visible;
+    margin:0 0 16px !important;
+  }
+  #templates #aiTocSidebar.ai-toc.open .ai-toc-items{
+    max-height:420px;
+    overflow:auto;
+  }
+}

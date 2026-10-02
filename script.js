@@ -514,6 +514,21 @@ function renderHeaderDate(){
   const el=$("#headerDate");
   if(el) el.textContent=formatHeaderDate(new Date());
 }
+function updateAiStickyTocOffset(){
+  const root=document.documentElement;
+  const aiHead=document.querySelector("#templates .ai-card-head");
+  const topbar=document.querySelector(".topbar");
+  if(!root||!aiHead) return;
+
+  const topbarHeight=Math.max(
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-height"))||0,
+    topbar?.getBoundingClientRect().height||0,
+    window.innerWidth<=1000?70:78
+  );
+  const aiHeadHeight=aiHead.getBoundingClientRect().height||0;
+  root.style.setProperty("--ai-toc-sticky-top",Math.ceil(topbarHeight+aiHeadHeight+8)+"px");
+}
+
 function scheduleHeaderDateRefresh(){
   renderHeaderDate();
   const now=new Date();
@@ -579,6 +594,7 @@ function showView(id){
   const label=$("#currentSectionLabel");
   if(label) label.textContent=VIEW_LABELS[id]||"科研工作台";
   closeSideNav();
+  if(id==="templates") requestAnimationFrame(updateAiStickyTocOffset);
 }
 function initNav(){
   $$("#nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
@@ -635,6 +651,7 @@ function initNav(){
 async function init(){
   initNav();
   scheduleHeaderDateRefresh();
+  requestAnimationFrame(updateAiStickyTocOffset);
   if(!isConfigured){ showSetup(); return; }
   // One-time security cleanup: older versions always persisted Supabase login.
   // Unless the user has explicitly chosen "保持登录" in the new UI, do not reuse it.
@@ -2301,6 +2318,7 @@ window.addEventListener("online",async()=>{
   await refreshAll();
   subscribeRealtime();
 });
+window.addEventListener("load",updateAiStickyTocOffset);
 window.addEventListener("focus",renderHeaderDate);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) renderHeaderDate(); });
 

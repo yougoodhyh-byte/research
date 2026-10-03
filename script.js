@@ -1803,6 +1803,28 @@ function aiSelectionInsideEditor(sel=window.getSelection()){
   const node=range.commonAncestorContainer;
   return editor.contains(node.nodeType===Node.ELEMENT_NODE?node:node.parentNode);
 }
+function clearAiReadonlySelectionHighlight(){
+  try{
+    CSS.highlights?.delete("ai-readonly-selection");
+  }catch{}
+}
+
+function renderAiReadonlySelectionHighlight(){
+  clearAiReadonlySelectionHighlight();
+  if(aiEditMode||!aiReadonlySelectionLocked||!hasRememberedAiSelection()) return;
+
+  try{
+    if(window.Highlight&&CSS.highlights){
+      CSS.highlights.set(
+        "ai-readonly-selection",
+        new Highlight(aiSelectionRange.cloneRange())
+      );
+    }
+  }catch(error){
+    console.warn("AI readonly selection highlight failed",error);
+  }
+}
+
 function rememberAiSelection(){
   const sel=window.getSelection();
   if(!aiSelectionInsideEditor(sel)){
@@ -1815,7 +1837,10 @@ function rememberAiSelection(){
   }
 
   aiSelectionRange=sel.getRangeAt(0).cloneRange();
-  if(!aiEditMode) aiReadonlySelectionLocked=true;
+  if(!aiEditMode){
+    aiReadonlySelectionLocked=true;
+    renderAiReadonlySelectionHighlight();
+  }
   return true;
 }
 function hasRememberedAiSelection(){
@@ -1847,6 +1872,7 @@ function hideAiSelectionToolbar(force=false){
 function clearAiSelectionToolbarState(){
   aiReadonlySelectionLocked=false;
   aiSelectionRange=null;
+  clearAiReadonlySelectionHighlight();
   hideAiSelectionToolbar(true);
 }
 function updateAiSelectionToolbar(){
@@ -1859,9 +1885,13 @@ function updateAiSelectionToolbar(){
   if(aiSelectionInsideEditor(sel)){
     range=sel.getRangeAt(0).cloneRange();
     aiSelectionRange=range.cloneRange();
-    if(!aiEditMode) aiReadonlySelectionLocked=true;
+    if(!aiEditMode){
+      aiReadonlySelectionLocked=true;
+      renderAiReadonlySelectionHighlight();
+    }
   }else if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()){
     range=aiSelectionRange.cloneRange();
+    renderAiReadonlySelectionHighlight();
   }else{
     hideAiSelectionToolbar(true);
     return;
@@ -2485,6 +2515,7 @@ $$("[data-ai-float-action]").forEach(btn=>{
 $("#aiEditor").addEventListener("mouseup",()=>{
   setTimeout(()=>{
     if(aiSelectionInsideEditor()) rememberAiSelection();
+    if(!aiEditMode) renderAiReadonlySelectionHighlight();
     tryApplyFormatPainter();
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },0);
@@ -2492,6 +2523,7 @@ $("#aiEditor").addEventListener("mouseup",()=>{
 $("#aiEditor").addEventListener("touchend",()=>{
   setTimeout(()=>{
     if(aiSelectionInsideEditor()) rememberAiSelection();
+    if(!aiEditMode) renderAiReadonlySelectionHighlight();
     tryApplyFormatPainter();
     if(!aiFormatPainter) updateAiSelectionToolbar();
   },80);
@@ -2662,7 +2694,11 @@ document.addEventListener("selectionchange",()=>{
   clearTimeout(window.__aiSelectionToolbarTimer);
   window.__aiSelectionToolbarTimer=setTimeout(()=>{
     const sel=window.getSelection();
-    if(aiSelectionInsideEditor(sel)) rememberAiSelection();
+    if(aiSelectionInsideEditor(sel)){
+      rememberAiSelection();
+    }else if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()){
+      renderAiReadonlySelectionHighlight();
+    }
     updateAiSelectionToolbar();
   },45);
 });

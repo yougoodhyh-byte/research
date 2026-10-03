@@ -1802,12 +1802,24 @@ function aiSelectionInsideEditor(sel=window.getSelection()){
 function rememberAiSelection(){
   const sel=window.getSelection();
   if(!aiSelectionInsideEditor(sel)){
+    // Mobile browsers may briefly collapse the live selection in read-only mode.
+    // Keep the last valid range until the user explicitly clicks elsewhere.
+    if(!aiEditMode&&hasRememberedAiSelection()) return false;
     aiSelectionRange=null;
     return false;
   }
   aiSelectionRange=sel.getRangeAt(0).cloneRange();
   return true;
 }
+function hasRememberedAiSelection(){
+  if(!aiSelectionRange) return false;
+  const editor=$("#aiEditor");
+  if(!editor) return false;
+  const node=aiSelectionRange.commonAncestorContainer;
+  const host=node?.nodeType===Node.ELEMENT_NODE?node:node?.parentNode;
+  return !!host&&editor.contains(host)&&!aiSelectionRange.collapsed;
+}
+
 function restoreAiSelection(){
   if(!aiSelectionRange) return false;
   const editor=$("#aiEditor");
@@ -1827,21 +1839,27 @@ function hideAiSelectionToolbar(){
 function updateAiSelectionToolbar(){
   const bar=$("#aiSelectionToolbar");
   if(!bar) return;
+
   const sel=window.getSelection();
-  if(!aiSelectionInsideEditor(sel)){
+  let range=null;
+
+  if(aiSelectionInsideEditor(sel)){
+    range=sel.getRangeAt(0).cloneRange();
+    aiSelectionRange=range.cloneRange();
+  }else if(!aiEditMode&&hasRememberedAiSelection()){
+    range=aiSelectionRange.cloneRange();
+  }else{
     hideAiSelectionToolbar();
     return;
   }
 
-  const range=sel.getRangeAt(0);
   const rects=range.getClientRects();
   const rect=(rects&&rects.length?rects[0]:range.getBoundingClientRect());
   if(!rect||(!rect.width&&!rect.height)){
-    hideAiSelectionToolbar();
+    if(aiEditMode) hideAiSelectionToolbar();
     return;
   }
 
-  aiSelectionRange=range.cloneRange();
   bar.classList.add("show");
   bar.setAttribute("aria-hidden","false");
 
@@ -1858,6 +1876,7 @@ function updateAiSelectionToolbar(){
   bar.style.left=Math.round(left)+"px";
   bar.style.top=Math.round(top)+"px";
 }
+
 async function runAiFloatingAction(action){
   if(action==="copy"){
     await copyAiSelection();
@@ -2616,14 +2635,31 @@ document.addEventListener("visibilitychange",()=>{ if(!document.hidden) renderHe
 document.addEventListener("selectionchange",()=>{
   if(aiFormatPainter) return;
   clearTimeout(window.__aiSelectionToolbarTimer);
-  window.__aiSelectionToolbarTimer=setTimeout(updateAiSelectionToolbar,35);
+  window.__aiSelectionToolbarTimer=setTimeout(()=>{
+    const sel=window.getSelection();
+    if(aiSelectionInsideEditor(sel)) rememberAiSelection();
+    updateAiSelectionToolbar();
+  },45);
 });
 document.addEventListener("pointerdown",e=>{
   if(e.target.closest("#aiSelectionToolbar")||e.target.closest("#aiEditor")) return;
+  aiSelectionRange=null;
   hideAiSelectionToolbar();
 });
-window.addEventListener("scroll",hideAiSelectionToolbar,{passive:true});
-window.addEventListener("resize",hideAiSelectionToolbar,{passive:true});
+window.addEventListener("scroll",()=>{
+  if(!aiEditMode&&hasRememberedAiSelection()){
+    requestAnimationFrame(updateAiSelectionToolbar);
+  }else{
+    hideAiSelectionToolbar();
+  }
+},{passive:true});
+window.addEventListener("resize",()=>{
+  if(!aiEditMode&&hasRememberedAiSelection()){
+    requestAnimationFrame(updateAiSelectionToolbar);
+  }else{
+    hideAiSelectionToolbar();
+  }
+},{passive:true});
 
 init();
 })();

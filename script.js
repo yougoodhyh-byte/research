@@ -93,6 +93,7 @@ let aiFormatPainter=null;
 let aiTocUpdating=false;
 let aiTocOpen=false;
 let aiSelectionRange=null;
+let aiReadonlySelectionLocked=false;
 let aiSearchRanges=[];
 let aiSearchIndex=-1;
 let aiEditMode=false;
@@ -608,6 +609,7 @@ function scheduleNavClose(delay=220){
   },delay);
 }
 function showView(id){
+  if(id!=="templates") clearAiSelectionToolbarState();
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#"+id)?.classList.add("active");
   const label=$("#currentSectionLabel");
@@ -1666,7 +1668,9 @@ function setAiEditMode(enabled,{save=true}={}){
   if(!editor) return;
 
   const wasEditing=aiEditMode;
-  aiEditMode=!!enabled;
+  const nextMode=!!enabled;
+  if(nextMode!==aiEditMode) clearAiSelectionToolbarState();
+  aiEditMode=nextMode;
 
   editor.setAttribute("contenteditable",aiEditMode?"true":"false");
   editor.setAttribute("aria-readonly",aiEditMode?"false":"true");
@@ -1802,13 +1806,16 @@ function aiSelectionInsideEditor(sel=window.getSelection()){
 function rememberAiSelection(){
   const sel=window.getSelection();
   if(!aiSelectionInsideEditor(sel)){
-    // Mobile browsers may briefly collapse the live selection in read-only mode.
-    // Keep the last valid range until the user explicitly clicks elsewhere.
-    if(!aiEditMode&&hasRememberedAiSelection()) return false;
+    // In read-only mode, mobile selection handles may repeatedly collapse the
+    // live browser selection. Keep the last valid range locked.
+    if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()) return false;
     aiSelectionRange=null;
+    if(!aiEditMode) aiReadonlySelectionLocked=false;
     return false;
   }
+
   aiSelectionRange=sel.getRangeAt(0).cloneRange();
+  if(!aiEditMode) aiReadonlySelectionLocked=true;
   return true;
 }
 function hasRememberedAiSelection(){
@@ -1830,11 +1837,17 @@ function restoreAiSelection(){
   sel.addRange(aiSelectionRange);
   return true;
 }
-function hideAiSelectionToolbar(){
+function hideAiSelectionToolbar(force=false){
+  if(!force&&!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()) return;
   const bar=$("#aiSelectionToolbar");
   if(!bar) return;
   bar.classList.remove("show");
   bar.setAttribute("aria-hidden","true");
+}
+function clearAiSelectionToolbarState(){
+  aiReadonlySelectionLocked=false;
+  aiSelectionRange=null;
+  hideAiSelectionToolbar(true);
 }
 function updateAiSelectionToolbar(){
   const bar=$("#aiSelectionToolbar");
@@ -1846,17 +1859,31 @@ function updateAiSelectionToolbar(){
   if(aiSelectionInsideEditor(sel)){
     range=sel.getRangeAt(0).cloneRange();
     aiSelectionRange=range.cloneRange();
-  }else if(!aiEditMode&&hasRememberedAiSelection()){
+    if(!aiEditMode) aiReadonlySelectionLocked=true;
+  }else if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()){
     range=aiSelectionRange.cloneRange();
   }else{
-    hideAiSelectionToolbar();
+    hideAiSelectionToolbar(true);
     return;
   }
 
-  const rects=range.getClientRects();
-  const rect=(rects&&rects.length?rects[0]:range.getBoundingClientRect());
+  const topbarBottom=(document.querySelector(".topbar")?.getBoundingClientRect().bottom||0)+4;
+  const rects=[...range.getClientRects()].filter(r=>r.width||r.height);
+  const visibleRects=rects.filter(r=>
+    r.bottom>topbarBottom &&
+    r.top<window.innerHeight-4 &&
+    r.right>0 &&
+    r.left<window.innerWidth
+  );
+
+  // For a long multi-line selection, anchor the toolbar to a currently visible
+  // selected line instead of the first line of the entire range.
+  const rect=visibleRects.length
+    ? visibleRects[visibleRects.length-1]
+    : (rects.length?rects[0]:range.getBoundingClientRect());
+
   if(!rect||(!rect.width&&!rect.height)){
-    if(aiEditMode) hideAiSelectionToolbar();
+    if(aiEditMode) hideAiSelectionToolbar(true);
     return;
   }
 
@@ -1869,18 +1896,16 @@ function updateAiSelectionToolbar(){
   left=Math.max(margin,Math.min(window.innerWidth-barRect.width-margin,left));
 
   let top=rect.top-barRect.height-gap;
-  const topLimit=(document.querySelector(".topbar")?.getBoundingClientRect().bottom||0)+4;
-  if(top<topLimit) top=rect.bottom+gap;
-  top=Math.max(margin,Math.min(window.innerHeight-barRect.height-margin,top));
+  if(top<topbarBottom) top=rect.bottom+gap;
+  top=Math.max(topbarBottom,Math.min(window.innerHeight-barRect.height-margin,top));
 
   bar.style.left=Math.round(left)+"px";
   bar.style.top=Math.round(top)+"px";
 }
-
 async function runAiFloatingAction(action){
   if(action==="copy"){
     await copyAiSelection();
-    hideAiSelectionToolbar();
+    clearAiSelectionToolbarState();
     return;
   }
   if(action==="paste"){
@@ -2643,21 +2668,26 @@ document.addEventListener("selectionchange",()=>{
 });
 document.addEventListener("pointerdown",e=>{
   if(e.target.closest("#aiSelectionToolbar")||e.target.closest("#aiEditor")) return;
-  aiSelectionRange=null;
-  hideAiSelectionToolbar();
+
+  // Native mobile selection handles are not DOM children of #aiEditor, so their
+  // pointer events can look like an outside tap. Never clear a locked read-only
+  // selection here; it is dismissed by Copy, mode/view changes, or a new selection.
+  if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()) return;
+
+  clearAiSelectionToolbarState();
 });
 window.addEventListener("scroll",()=>{
-  if(!aiEditMode&&hasRememberedAiSelection()){
+  if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()){
     requestAnimationFrame(updateAiSelectionToolbar);
-  }else{
-    hideAiSelectionToolbar();
+  }else if(aiEditMode){
+    hideAiSelectionToolbar(true);
   }
 },{passive:true});
 window.addEventListener("resize",()=>{
-  if(!aiEditMode&&hasRememberedAiSelection()){
+  if(!aiEditMode&&aiReadonlySelectionLocked&&hasRememberedAiSelection()){
     requestAnimationFrame(updateAiSelectionToolbar);
-  }else{
-    hideAiSelectionToolbar();
+  }else if(aiEditMode){
+    hideAiSelectionToolbar(true);
   }
 },{passive:true});
 

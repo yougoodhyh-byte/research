@@ -1873,6 +1873,9 @@ function clearAiSelectionToolbarState(){
   aiReadonlySelectionLocked=false;
   aiSelectionRange=null;
   clearAiReadonlySelectionHighlight();
+  try{
+    window.getSelection()?.removeAllRanges();
+  }catch{}
   hideAiSelectionToolbar(true);
 }
 function updateAiSelectionToolbar(){

@@ -1916,3 +1916,9 @@ body.nav-open{overflow:hidden}
     right:8px !important;
   }
 }
+
+/* Persistent visual selection for read-only AI content */
+::highlight(ai-readonly-selection){
+  background:rgba(47,111,211,.92);
+  color:#fff;
+}

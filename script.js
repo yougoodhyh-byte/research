@@ -1703,28 +1703,65 @@ function setAiEditMode(enabled,{save=true}={}){
   }
 }
 
+function showAiCopySuccessToast(){
+  let toast=$("#aiCopySuccessToast");
+  if(!toast){
+    toast=document.createElement("div");
+    toast.id="aiCopySuccessToast";
+    toast.className="ai-copy-success-toast";
+    toast.setAttribute("role","status");
+    toast.setAttribute("aria-live","polite");
+    toast.textContent="✓ 复制成功";
+    document.body.appendChild(toast);
+  }
+
+  clearTimeout(window.__aiCopyToastTimer);
+  toast.classList.remove("show");
+  void toast.offsetWidth;
+  toast.classList.add("show");
+
+  window.__aiCopyToastTimer=setTimeout(()=>{
+    toast.classList.remove("show");
+  },1400);
+}
+
 async function copyAiSelection(){
-  if(!restoreAiSelection()) return;
+  if(!restoreAiSelection()) return false;
   const text=window.getSelection()?.toString()||"";
-  if(!text) return;
+  if(!text) return false;
+
+  let copied=false;
 
   try{
     await navigator.clipboard.writeText(text);
+    copied=true;
   }catch{
     const ta=document.createElement("textarea");
     ta.value=text;
     ta.style.position="fixed";
+    ta.style.left="-9999px";
     ta.style.opacity="0";
     document.body.appendChild(ta);
+    ta.focus();
     ta.select();
-    try{document.execCommand("copy");}catch{}
+    try{
+      copied=!!document.execCommand("copy");
+    }catch{
+      copied=false;
+    }
     ta.remove();
   }
 
+  if(!copied) return false;
+
   $("#aiSaveState").textContent="已复制";
+  showAiCopySuccessToast();
+
   setTimeout(()=>{
     $("#aiSaveState").textContent=aiEditMode?"编辑中":"只读";
   },900);
+
+  return true;
 }
 
 function insertAiPlainText(text){
@@ -1937,8 +1974,8 @@ function updateAiSelectionToolbar(){
 }
 async function runAiFloatingAction(action){
   if(action==="copy"){
-    await copyAiSelection();
-    clearAiSelectionToolbarState();
+    const copied=await copyAiSelection();
+    if(copied) clearAiSelectionToolbarState();
     return;
   }
   if(action==="paste"){
